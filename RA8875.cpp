@@ -1048,7 +1048,7 @@ void RA8875::textWrite(const char* buffer, uint16_t len) {
 		//goBack = true;
 	}
 	if (len == 0) len = strlen(buffer);
-	if (len > 0 && ((buffer[0] == '\r') && (buffer[1] == '\n'))){//got a println?
+	if (len > 1 && ((buffer[0] == '\r') && (buffer[1] == '\n'))){//got a println?
 		//get current y
 		t1 = readReg(RA8875_F_CURYL);
 		t2 = readReg(RA8875_F_CURYH);
@@ -1058,7 +1058,10 @@ void RA8875::textWrite(const char* buffer, uint16_t len) {
 		ny = ny + (16 + (16*_textVScale))+_fontInterline;//TODO??
 		setCursor(0,ny);
 		start = 2;
-	#if defined(ENERGIA)//oops! Energia 013 seems have a bug here! Should send a \r but only \n given!
+	#if defined(ENERGIA) || defined(__AVR_ATmega32U4__)
+		//oops! Energia 013 seems have a bug here! Should send a \r but only \n given!
+	    //The Micro also seems to only ever send one char at a time to this function, so
+		//the test above will always fail to find the\r\n pair.
 		} else if (len > 0 && ((buffer[0] == '\n'))){
 			//get current y
 			t1 = readReg(RA8875_F_CURYL);
@@ -1255,7 +1258,8 @@ void RA8875::waitBusy(uint8_t res) {
 		if (res == 0x01) writeCommand(RA8875_DMACR);//dma
 		w = readStatus();
 		if(millis()-start > 10) return;//expect initialization to take 5ms, but give it some leeway.
-	} while ((w & res) == res);}
+	} while ((w & res) == res);
+}
 
 
 /**************************************************************************/
