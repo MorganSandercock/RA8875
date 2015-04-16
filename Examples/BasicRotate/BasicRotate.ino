@@ -16,7 +16,7 @@ Basic Rotated Text Functions
  Because of this mirror effect you probably always want to clear the 
  screen when rotating, but it might be useful to somebody.
  
- X and Y coordinates are fliiped so that (0,0) is always the top-left 
+ X and Y coordinates are flipped so that (0,0) is always the top-left 
  corner, but X is always the long axis of the screen and Y is the
  short axis. In rotation 1 and 3, increasing Y moves over to the
  right. In 0 and 2, increasing Y moves down.
