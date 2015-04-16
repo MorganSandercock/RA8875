@@ -1053,59 +1053,42 @@ void RA8875::setFontSpacing(uint8_t spc){//ok
 */
 /**************************************************************************/
 void RA8875::textWrite(const char* buffer, uint16_t len) {
-	//bool goBack = false;
-	uint8_t start = 0;
-	uint16_t i,ny;
+	uint16_t i,v;
 	uint8_t t1,t2;
 	if (_currentMode == GRAPHIC){
 		changeMode(TEXT);
-		//goBack = true;
 	}
 	if (len == 0) len = strlen(buffer);
-	if (len > 1 && ((buffer[0] == '\r') && (buffer[1] == '\n'))){//got a println?
-		//get current y
-		t1 = readReg(RA8875_F_CURYL);
-		t2 = readReg(RA8875_F_CURYH);
-		//calc new line y
-		ny = (t2 << 8) | (t1 & 0xFF);
-		//update y
-		ny = ny + (16 + (16*_textVScale))+_fontInterline;//TODO??
-		setCursor(0,ny);
-		start = 2;
-	#if defined(ENERGIA) || defined(__AVR_ATmega32U4__)
-		//oops! Energia 013 seems have a bug here! Should send a \r but only \n given!
-	    //The Micro also seems to only ever send one char at a time to this function, so
-		//the test above will always fail to find the\r\n pair.
-		} else if (len > 0 && ((buffer[0] == '\n'))){
-			//get current y
-			t1 = readReg(RA8875_F_CURYL);
-			t2 = readReg(RA8875_F_CURYH);
-			//calc new line y
-			ny = (t2 << 8) | (t1 & 0xFF);
-			//update y
-			ny = ny + (16 + (16*_textVScale))+_fontInterline;//TODO??
-			setCursor(0,ny);
-			start = 1;
-		}
-	#else
-		}
-	#endif
 	writeCommand(RA8875_MRWC);
-	for (i=start;i<len;i++){
-		if (buffer[i] == '\n' || buffer[i] == '\r') {
-			//_cursor_y += textsize * 8;
-			//_cursor_x  = 0;
-		} else {
-			writeData(buffer[i]);
-			waitBusy(0x80);
+	for (i=0;i<len;i++){
+		switch(buffer[i]) {
+			case '\r':
+				//Ignore carriage-return, only detect \n newline 
+			break;
+			case '\n':
+				//Move cursor down - X or Y depends on the rotation
+				if(_rotation == 0 || _rotation == 2) {
+					//y coordinate is vertical
+					t1 = readReg(RA8875_F_CURYL);
+					t2 = readReg(RA8875_F_CURYH);
+					v = (t2 << 8) | (t1 & 0xFF);
+					v += (16 + (16*_textVScale))+_fontInterline;
+					setCursor(0,v);
+				} else {
+					//x coordinate is vertical
+					t1 = readReg(RA8875_F_CURXL);
+					t2 = readReg(RA8875_F_CURXH);
+					v = (t2 << 8) | (t1 & 0xFF);
+					v += (16 + (16*_textVScale))+_fontInterline;
+					setCursor(v,0);
+				} 
+			break;
+			default:
+				//write a normal char
+				writeData(buffer[i]);
+				waitBusy(0x80);
 		}
-/* #if defined(__AVR__)
-		if (_textScale > 1) delay(1);
-#elif defined(__arm__)
-		if (_textScale > 0) delay(1);//Teensy3 
-#endif */
 	}
-	//if (goBack) changeMode(GRAPHIC);
 }
 
 /**************************************************************************/

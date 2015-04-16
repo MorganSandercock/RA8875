@@ -107,6 +107,11 @@ void writeText(char* msg) {
   tft.setTextColor(RA8875_RED,RA8875_GREEN);
   tft.setFontScale(3); //large text, string will be wider than the portrait screen
   tft.print("Hello World");
+  tft.println();
+  tft.println();
+  tft.setTextColor(RA8875_BLUE,RA8875_BLACK);
+  tft.setFontScale(2);
+  tft.print("Line 3");
   
   //try printing a custom char, to test the rotation of the bitmaps
   //The custom chars can only be shown at font scale 0
