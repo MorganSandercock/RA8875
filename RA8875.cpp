@@ -520,7 +520,7 @@ void RA8875::changeMode(enum RA8875modes m) {
 }
 
 /**************************************************************************/
-/*!		Upload user custom cahr or symbol to CGRAM, max 255
+/*!		Upload user custom char or symbol to CGRAM, max 255
 		Parameters:
 		symbol[]: an 8bit x 16 char in an array. Must be exact 16 bytes
 		address: 0...255 the address of the CGRAM where to store the char
@@ -528,20 +528,21 @@ void RA8875::changeMode(enum RA8875modes m) {
 /**************************************************************************/
 void RA8875::uploadUserChar(const uint8_t symbol[],uint8_t address) {
 	bool modeChanged = false;
+	uint8_t tempMWCR1 = readReg(RA8875_MWCR1);
 	uint8_t i;
-	if (_currentMode != GRAPHIC) {//was in text!
+	if (_currentMode != GRAPHIC) {     //was in text!
 		changeMode(GRAPHIC);
 		modeChanged = true;
 	}
 	writeReg(RA8875_CGSR,address);
-	writeTo(CGRAM);
+	writeTo(CGRAM);                    //this clobbers MWCR1
 	writeCommand(RA8875_MRWC);
 	for (i=0;i<16;i++){
 		writeData(symbol[i]);
 	}
-	if (modeChanged) changeMode(TEXT);//back to text
+	writeReg(RA8875_MWCR1, tempMWCR1); //restore the previous writeTo
+	if (modeChanged) changeMode(TEXT); //back to text
 }
-
 /**************************************************************************/
 /*!		Retrieve and print to screen the user custom char or symbol
 		User have to store a custom char before use this function
