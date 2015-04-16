@@ -1241,12 +1241,21 @@ boolean RA8875::waitPoll(uint8_t regname, uint8_t waitflag) {
 */
 /**************************************************************************/
 void RA8875::waitBusy(uint8_t res) {
+	//Found this wasn't working properly on the Adafruit 480x272 4.3" display
+	//It would just never come up as ready during the initialise.
+	//clearMemory(true) calls waitBusy(0x80), looking for the memory read/write busy bit.
+	//The status returned from the display was initially 0xC0 which the 
+	//datasheet says corresponds to memory busy and BTE (block transfer) busy.
+	//After about 5ms, this would change to 0x80 and stay there. It
+	//never reported un-busy so this function would hang.
+	//Putting in the timeout allowed the example programs to run and it works!
 	uint8_t w; 	
+	unsigned long start = millis();
 	do {
-	if (res == 0x01) writeCommand(RA8875_DMACR);//dma
-	w = readStatus();
-	} while ((w & res) == res);
-}
+		if (res == 0x01) writeCommand(RA8875_DMACR);//dma
+		w = readStatus();
+		if(millis()-start > 10) return;//expect initialization to take 5ms, but give it some leeway.
+	} while ((w & res) == res);}
 
 
 /**************************************************************************/
