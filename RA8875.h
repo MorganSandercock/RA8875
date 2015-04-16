@@ -190,6 +190,8 @@ class RA8875 : public Print {
 	void 		scanDirection(boolean invertH,boolean invertV);
 	void 		setColorBpp(uint8_t colors);//set the display color space 8 or 16!
 	uint8_t 	getColorBpp();//get the current display color space (return 8 or 16)
+	void		setRotation(uint8_t rotation); //rotate text and graphics
+	uint8_t		getRotation(); //return the current rotation 0-3
 //--------------area & color -------------------------
 	void		setActiveWindow(uint16_t XL,uint16_t XR ,uint16_t YT ,uint16_t YB);
 	uint16_t 	width(void);
@@ -328,6 +330,7 @@ using Print::write;
 	uint8_t					_fontSpacing;
 	bool					_fontFullAlig;
 	bool					_fontRotation;
+	uint8_t					_rotation;
 	bool					_extFontRom;
 	uint8_t					_fontInterline;
 	enum RA8875extRomFamily _fontFamily;
