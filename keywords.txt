@@ -85,6 +85,7 @@ writeCommand	KEYWORD2
 writeData16	KEYWORD2
 setX	KEYWORD2
 setY	KEYWORD2
+Color565	KEYWORD2
 
 
 #######################################

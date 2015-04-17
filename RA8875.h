@@ -286,8 +286,8 @@ class RA8875 : public Print {
 	boolean		touchCalibrated(void);//true if screen calibration it's present
 #endif
 //----------------------------------------------------
-	//thanks to Adafruit for this!
-    inline uint16_t Color565(uint8_t r,uint8_t g,uint8_t b) { return ((b & 0xF8) << 8) | ((g & 0xFC) << 3) | (r >> 3); }
+	//Blue is interpreted differently in 8-bit mode - needs a different shift
+    inline uint16_t Color565(uint8_t r,uint8_t g,uint8_t b) { return (_color_bpp==16) ? ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3) : ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 6); }
 	void    	writeCommand(uint8_t d);
 	void  		writeData16(uint16_t data);
 //--------------Text Write -------------------------
