@@ -2,15 +2,9 @@
 	--------------------------------------------------
 	RA8875 LCD/TFT Graphic Controller Driver Library
 	--------------------------------------------------
-	Version:0.69b19 bug fixes and adds from M.Sanderscock
-	Added alternative pins for SPI (only Teensy 3.x or LC)
-	Corrected setRotation and added absolute display W&H to support rotation
-	Sleep mode on/off sequence ok!
-	--> Fixed color at 8 bit! <--
-	Added setFontAdvance
-	Added some test BTE stuff
-	Small optimizations and library cleaning
-	
+	Version:0.69b24
+	added clearScreen functionality, fixed setActiveWindow in portrait.
+	added getActiveWindow
 	++++++++++++++++++++++++++++++++++++++++++++++++++
 	Written by: Max MC Costa for s.u.m.o.t.o.y
 	++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -85,6 +79,63 @@ SD CARD ID: pin xx (selectable and optional)
 *(3) On Teensy3.x not all pin are usable for CS's! 
 can be used: 2,6,9,10,15,20,21,22,23
 
+	-----------------------------------------------
+	in ms
+Screen fill              37380 	25140
+Text                     36828	36626
+Lines                    54186	40914
+Horiz/Vert Lines         39910	32280
+Rectangles (outline)     66329	45956
+Rectangles (filled)      70788	48744
+Circles (filled)         90466	67567
+Circles (outline)        96677	72260
+Triangles (outline)      12743	9848
+Triangles (filled)       22655	16359
+Rounded rects (outline)  10198	9045
+Rounded rects (filled)   42062	30125
+
+
+Benchmark                Time (microseconds)
+Screen fill              4949
+Test Pixel               42
+Test Pixels              19779
+Text                     20717 4696
+Lines                    39317
+Horiz/Vert Lines         30758
+Rectangles (outline)     45341
+Rectangles (filled)      213002
+Circles (filled)         66797
+Circles (outline)        66202
+Triangles (outline)      9335
+Triangles (filled)       15968
+Rounded rects (outline)  8298
+Rounded rects (filled)   29468
+--------------------------------
+
+	color = (color << 8) | (color >> 8);    // swap
+    uint8_t blue  = ((color & 0x001F) << 3) | (color & 0x07)
+    uint8_t green = ((color & 0x07E0) >> 3) | ((color >> 9) & 0x03);
+    uint8_t red   = ((color & 0xF800) >> 8) | ((color >> 13) & 0x07);
+	
+uint16_t RA8875::rgbTo16(uint8_t r, uint8_t g, uint8_t b){
+    uint16_t color;
+    color  = ((r >> 3) <<  0);
+    color |= ((g >> 2) <<  5);
+    color |= ((b >> 3) << 11);
+	return color;
+}
+
+The suggested programming steps and registers setting are listed below as reference.pag130
+1. Setting destination position -> REG[58h], [59h], [5Ah], [5Bh]
+2. Setting BTE width register -> REG[5Ch], [5Dh]
+3. Setting BTE height register -> REG[5Eh], [5Fh]
+4. Setting register Destination = source -> REG[51h] = Ch
+5. Enable BTE function -> REG[50h] Bit7 = 1
+6. Enable REG[02h]
+7. Check STSR Bit7
+8. Write next image data
+9. Continue run step 7, 8 until image data = block image data. Or Check STSR Bit6
+
 */
 
 #ifndef _RA8875MC_H_
@@ -118,6 +169,10 @@ can be used: 2,6,9,10,15,20,21,22,23
   #include <math.h>
 #endif
 
+#if !defined(swapvals)
+#define swapvals(a, b) { typeof(a) t = a; a = b; b = t; }
+#endif
+
 enum RA8875sizes { RA8875_320x240, RA8875_480x272, RA8875_640x480, RA8875_800x480, Adafruit_480x272, Adafruit_640x480, Adafruit_800x480 };
 enum RA8875modes { GRAPHIC,TEXT };
 enum RA8875tcursor { NOCURSOR,IBEAM,UNDER,BLOCK };
@@ -148,6 +203,7 @@ static const uint8_t _RA8875colorMask[6] = {11,5,0,13,8,3};//for color masking, 
 
 class RA8875 : public Print {
  public:
+	void 		debugData(uint16_t data,uint8_t len=8);
 //------------- Instance -------------------------
 	//#if defined(__MKL26Z64__)
 	//	RA8875(const uint8_t CS,const uint8_t RST=255,uint8_t spiInterface=0);//only Teensy LC
@@ -171,6 +227,7 @@ class RA8875 : public Print {
 	void  		writeData16(uint16_t data);
 //--------------area -------------------------------------
 	void		setActiveWindow(uint16_t XL,uint16_t XR ,uint16_t YT ,uint16_t YB);//The working area where to draw on
+	void 		getActiveWindow(uint16_t &XL,uint16_t &XR ,uint16_t &YT ,uint16_t &YB);
 	uint16_t 	width(void) const;//the phisical display width
 	uint16_t 	height(void) const;//the phisical display height
 	void		setRotation(uint8_t rotation); //rotate text and graphics
@@ -222,8 +279,8 @@ class RA8875 : public Print {
 	void    	setFontScale(uint8_t vscale,uint8_t hscale);//font scale separatred bu w and h
 	void    	setFontSize(enum RA8875tsize ts,boolean halfSize=false);//X16,X24,X32
 	void 		setFontSpacing(uint8_t spc);//0:disabled ... 63:pix max
-	void 		setFontRotate(boolean rot);//true = 90 degrees
 	void 		setFontInterline(uint8_t pix);//0...63 pix
+	//void 		setTextWrap(bool wrap);
 	void 		setFontFullAlign(boolean align);//mmmm... doesn't do nothing! Have to investigate
 	void 		setFontAdvance(bool on);
 	uint8_t 	getFontWidth(boolean inColums=false);
@@ -242,10 +299,13 @@ class RA8875 : public Print {
 	void 		setPattern(uint8_t num, enum RA8875pattern p=P8X8);
 	//--------------- DRAW -------------------------
 	void    	drawPixel(int16_t x, int16_t y, uint16_t color);
+	void 		drawPixels(uint16_t * p, uint32_t count, int16_t x, int16_t y);
+	uint16_t 	getPixel(int16_t x, int16_t y);
+	void 		getPixels(uint16_t * p, uint32_t count, int16_t x, int16_t y);
 	void    	drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);//ok
 	void    	drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);//ok
 	void    	fillScreen(uint16_t color=RA8875_BLACK);//fill the entire screen with a color(default black)
-	void		clearScreen(uint16_t color=RA8875_BLACK);//exact as fillScreen, used for compatibility
+	void		clearScreen(uint16_t color=RA8875_BLACK);//as fillScreen but doesn't depends from setActiveWindow
 	void    	drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
 	void    	drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 	void    	fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
@@ -333,24 +393,35 @@ using Print::write;
 	#if defined(USE_RA8875_KEYMATRIX)
 	bool					_keyMatrixEnabled;
 	#endif
-	//----------------------------------------
+	//system vars -------------------------------------------
 	bool					_unsupported;//if true, not supported board
 	bool					_inited;//true when init has been ended
-	uint8_t					_initIndex;
 	bool					_sleep;
-	uint16_t 		 		_width, _height;
-	uint16_t 		 		WIDTH, HEIGHT;
+	bool					_portrait;
+	uint8_t					_rotation;
+	uint8_t					_initIndex;
+	uint16_t 		 		_width, _height;//relative to rotation
+	uint16_t 		 		WIDTH, HEIGHT;//absolute
+	uint16_t				_activeWindowXL;
+	uint16_t				_activeWindowXR;
+	uint16_t				_activeWindowYT;
+	uint16_t				_activeWindowYB;
+	//text vars ----------------------------------------------
+	uint16_t				_txtForeColor;
+	uint16_t				_txtBackColor;
 	uint16_t				_cursorX, _cursorY;//try to internally track text cursor...
 	uint8_t 		 		_textHScale, _textVScale;	 		
-	uint8_t					_rotation;
 	uint8_t					_fontSpacing;
 	uint8_t					_fontInterline;
-	bool					_textWrap;
-	bool					_fontFullAlig;
-	bool					_fontRotation;
-	uint8_t					_rotation;
-	bool					_extFontRom;
-	bool					_autoAdvance;
+	/*
+	bit			 parameter
+	0	->		_extFontRom
+	1	->		_autoAdvance
+	2	->		_textWrap
+	3	->		_fontFullAlig
+	4	->		_fontRotation
+	*/
+	uint8_t					_commonTextPar;
 	enum RA8875extRomFamily _fontFamily;
 	enum RA8875extRomType 	_fontRomType;
 	enum RA8875extRomCoding _fontRomCoding;
@@ -391,9 +462,11 @@ using Print::write;
 	#endif
 	void 	DMA_blockModeSize(int16_t BWR,int16_t BHR,int16_t SPWR);
 	void 	DMA_startAddress(unsigned long adrs);
+	void 	updateActiveWindow(bool full);
 	//---------------- moved to private functions (before where public) ------------
 	void 	changeMode(enum RA8875modes m);//GRAPHIC,TEXT (now private)
 	void 	scanDirection(boolean invertH,boolean invertV);//(now private)
+	
 	//---------------------------------------------------------
     // Low level access  commands ----------------------
 	void    	writeReg(uint8_t reg, uint8_t val);
