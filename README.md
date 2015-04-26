@@ -5,11 +5,12 @@ RA8875 library
 <br>Here's a video test that proof the 0.45 version, Teensy3.1 and chinese board for tft.<br>
 **Wiki added!** https://github.com/sumotoy/RA8875/wiki
 
-##### Current Version: 0.69b12 (beta, re-download all library and read changes!!!)<br>
+##### Current Version: 0.69b19 (beta, re-download all library and read changes!!!)<br>
 Current beta **tested only with**:
 
 * Teensy 3.1, Stellaris
 * EastRising RA8875 5"Inch (480x272) in SPI mode<br>
+* EastRising RA8875 7"Inch (800x480) in SPI mode<br>
 <b>NOTE</b>:If your do not work please ask here, I've <b>VERIFIED</b> that works.<br>
 
 A couple of users tested also with:
@@ -56,6 +57,9 @@ If you have troubles the old version it's in the folder OldVersions.
 * 0.69b10: text it's faster than ever, changed useLayer (now not needed to be called), rebuilded showCursors (now easier with 4 different cursors, check demo basicTextFunctions,fixed Triangle, faster SPI.
 * 0.69b11: internal changes
 * 0.69b12: changeMode function it's now automatic and will be private soon.
+* 0.69b15: fixed several errors and added more functionalities by M.Sanderscock. Confirmed 800x480 works.
+* 0.69b18: FIXED 8 BIT COLOR! fixed sleep sequence, added a couple of functions.
+* 0.69b19: Fixed a couple of examples, memoryClear now works as it should.
 
 
 ##### Description
@@ -125,7 +129,8 @@ https://github.com/sumotoy/RA8875/wiki/EastRising-and-Buydisplay-SPI-configurati
 <br><br>
 There's another **hardware issue on MISO** that's a problem only if you are not planning to use any other SPI devices together with RA8875 (example, the SD card holder!), Paul Stoffregen discover the MISO bug that it's not tristate:<br>
 https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices<br><br>
-The chip it's **NOT out-of-range-values tolerant!** (in contrast of the 90% of the other commercial drivers) If a value it's out of range you can experience various screen weirdness like garbage, white screen or chip freeze! This forced me to carefully surround many function with data range checks.
+The chip it's **NOT out-of-range-values tolerant!** (in contrast of the 90% of the other commercial drivers) If a value it's out of range you can experience various screen weirdness like garbage, white screen or chip freeze! This forced me to carefully surround many function with data range checks.<br><br>
+Memory Clear full should clear all layers memory? Accordly datasheet seems yes but it doesn't work as it should. On Datasheet, memory clear can clear the current screen or the entire memory but there's very obscure commands like memory start clear and memory stop clear that are not documented... Grrr
 
 #### Wiring with your MCU
 I support only _native SPI_.<br>

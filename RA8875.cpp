@@ -1,10 +1,11 @@
 #include <SPI.h>
 #include "RA8875.h"
 
+
+
 #ifdef SPI_HAS_TRANSACTION
 static SPISettings settings;
 #endif
-
 
 /**************************************************************************/
 /*!
@@ -16,6 +17,7 @@ static SPISettings settings;
 */
 /**************************************************************************/
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
+/*
 	#if defined(__MKL26Z64__)//this one has 2 SPI
 		RA8875::RA8875(const uint8_t CS,const uint8_t RST,uint8_t spiInterface){
 			_SPIint = spiInterface;
@@ -23,8 +25,13 @@ static SPISettings settings;
 	#else
 		RA8875::RA8875(const uint8_t CS,const uint8_t RST){
 	#endif
+*/
+	RA8875::RA8875(const uint8_t CS,const uint8_t RST,uint8_t mosi_pin,uint8_t sclk_pin,uint8_t miso_pin){
 			_cs = CS;
 			_rst = 255;
+			_mosi = mosi_pin;
+			_miso = miso_pin;
+			_sclk = sclk_pin;
 			if (RST != 255) _rst = RST;
 		}
 #else
@@ -34,7 +41,7 @@ static SPISettings settings;
 	#else
 /**************************************************************************/
 /*!
-	Contructor
+	Constructor
 	CS: SPI SS pin
 	RST: Reset pin (255 disable it)
 */
@@ -49,13 +56,15 @@ static SPISettings settings;
 #endif
 
 /**************************************************************************/
-/*!	PRIVATE
+/*!	
 	Helper, it will set CS pin accordly module selected
 	module: 0...3
+	[private]
 */
 /**************************************************************************/
 #if defined(NEEDS_SET_MODULE)
-void RA8875::selectCS(uint8_t module) {
+void RA8875::selectCS(uint8_t module) 
+{
 	if (module > 3) module = 3;
 	switch(module){
 		case 0:
@@ -87,23 +96,24 @@ void RA8875::selectCS(uint8_t module) {
 	Adafruit_480x272 (4.3" Adafruit displays)
 	Adafruit_680x480 (4.3" exists?)
 	Adafruit_800x480 (5" and 7" Adafruit displays)
-	(colors) - The color depth (default 16)
-	8 or 16 (bit)
+	(colors) - The color depth (default 16) 8 or 16 (bit)
 	-------------------------------------------------------------
 	UPDATE! in Energia IDE some devices needs an extra parameter!
 	module: sets the SPI interface (it depends from MCU). Default:0
 */
 /**************************************************************************/
-void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
-	uint8_t initIndex;
+void RA8875::begin(const enum RA8875sizes s,uint8_t colors) 
+{
 	_size = s;
 	_unsupported = false;
 	_inited = false;
+	_sleep = false;
 	_hasLayerLimits = false;
 	_maxLayers = 2;
 	_currentLayer = 0;
 	_useMultiLayers = false;//starts with one layer only
 	_currentMode = GRAPHIC;
+	_brightness = 255;
 	_cursorX = 0; _cursorY = 0; _scrollXL = 0; _scrollXR = 0; _scrollYT = 0; _scrollYB = 0;
 	_textWrap = _DFT_RA8875_TEXTWRAP;
 	_textSize = X16;
@@ -114,6 +124,10 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 	_fontSource = INT;
 	_fontFullAlig = false;
 	_fontRotation = false;
+<<<<<<< HEAD
+=======
+	_autoAdvance = true;
+>>>>>>> upstream/master
 	_rotation = 0;
 	_fontInterline = 0;
 	_fontFamily = STANDARD;
@@ -124,21 +138,13 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 		case RA8875_320x240:
 			_width = 320;
 			_height = 240;
-			initIndex = 0;
+			_initIndex = 0;
 		break;
 		case RA8875_480x272:
 		case Adafruit_480x272:
 			_width = 480;
 			_height = 272;
-			initIndex = 1;
-	//FOR TESTING---------
-/* 	_hasLayerLimits = true;
-	if (_color_bpp < 16){
-		_maxLayers = 2;
-	} else {
-		_maxLayers = 1;
-	} */
-	//end--------------
+			_initIndex = 1;
 		break;
 		case RA8875_640x480:
 		case Adafruit_640x480:
@@ -150,7 +156,7 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 				_maxLayers = 1;
 			}
 			_hasLayerLimits = true;
-			initIndex = 2;
+			_initIndex = 2;
 		break;
 		case RA8875_800x480:
 		case Adafruit_800x480:
@@ -162,22 +168,29 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 				_maxLayers = 1;
 			}
 			_hasLayerLimits = true;
-			initIndex = 3;
+			_initIndex = 3;
 		break;
 		default:
 		//error, not supported
 		_unsupported = true;
 		return;
 	}
+	WIDTH = _width;
+	HEIGHT = _height;
 	#if !defined(USE_EXTERNALTOUCH)
 		_touchPin = 255;
 		_clearTInt = false;
 		_touchEnabled = false;
+<<<<<<< HEAD
 		if(!touchCalibrated()) {
 			_tsAdcMinX = 0; 
 			_tsAdcMinY = 0; 
 			_tsAdcMaxX = 1024; 
 			_tsAdcMaxY = 1024;
+=======
+		if (!touchCalibrated()) {//added by MorganSandercock
+			_tsAdcMinX = 0; _tsAdcMinY = 0; _tsAdcMaxX = 1024; _tsAdcMaxY = 1024;
+>>>>>>> upstream/master
 		} else {
 			//We have a valid calibration in _utilities\RA8875Calibration.h
 			//Note that low may be a smaller value than high
@@ -268,7 +281,7 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 		1 : Enable font write interrupt.
 	*/
 	_INTC1Reg = 0b00000000;
-	
+	/*
 	#if defined(__MKL26Z64__) && defined(SPI_HAS_TRANSACTION)//ready for the multi SPI
 		#if !defined(SPI1_BR)
 			#error you need to update SPI library!
@@ -282,6 +295,21 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 	#else//rest of the world
 		SPI.begin();
 	#endif 
+	*/
+	//------------------------------- Start SPI initialization ------------------------------------------
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
+		if ((_mosi == 11 || _mosi == 7) && (_miso == 12 || _miso == 8) && (_sclk == 13 || _sclk == 14)) {//valid SPI pins?
+			SPI.setMOSI(_mosi);
+			SPI.setMISO(_miso);
+			SPI.setSCK(_sclk);
+		} else {
+			return;
+		}
+		if (!SPI.pinIsChipSelect(_cs)) {//not a valid CS pin?
+			return;
+		}
+	#endif
+	SPI.begin();
 	#if !defined(ENERGIA)//energia needs this here
 		pinMode(_cs, OUTPUT);
 		digitalWrite(_cs, HIGH);
@@ -316,55 +344,41 @@ void RA8875::begin(const enum RA8875sizes s,uint8_t colors) {
 	pinMode(_cs, OUTPUT);
 	digitalWrite(_cs, HIGH);
 	#endif
-	initialize(initIndex);
+	initialize();
 }
 
 /************************* Initialization *********************************/
 
 /**************************************************************************/
 /*!
-	PRIVATE
       Hardware initialization of RA8875 and turn on
+	  [private]
 */
 /**************************************************************************/
-void RA8875::initialize(uint8_t initIndex) {
+void RA8875::initialize() 
+{
 	if (_unsupported) return;//better stop here!
 	_inited = false;
-	const static uint8_t initStrings[4][15] = {
-	{0x07,0x03,0x03,0x27,0x00,0x05,0x04,0x03,0xEF,0x00,0x05,0x00,0x0E,0x00,0x02},//0 -> 320x240 (0A)
-	{0x07,0x03,0x82,0x3B,0x00,0x01,0x00,0x05,0x0F,0x01,0x02,0x00,0x07,0x00,0x09},//1 -> 480x272 (10)
-	{0x07,0x03,0x01,0x4F,0x05,0x0F,0x01,0x00,0xDF,0x01,0x0A,0x00,0x0E,0x00,0x01},//2 -> 640x480
-	{0x07,0x03,0x81,0x63,0x00,0x03,0x03,0x0B,0xDF,0x01,0x1F,0x00,0x16,0x00,0x01} //3 -> 800x480 (fixed?)
-	};
-	// christoph settings = 60Mhz
-	const static uint8_t sysClockPar[4][2] = {
-	{0x0B,0x02},//0 -> 320x240
-	{0x0B,0x02},//1 -> 480x272
-	{0x0B,0x02},//2 -> 640x480
-	{0x0B,0x02} //3 -> 800x480
-	};
-	
-	if (_rst > 254) {//soft reset
+	if (_rst > 254) {//No Hard Reset? time for soft reset
 		writeCommand(RA8875_PWRR);
 		writeData(RA8875_PWRR_SOFTRESET);
+		delay(10);
 		writeData(RA8875_PWRR_NORMAL);
 		delay(200);
 	}
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master
 	//set the sysClock
-	writeReg(RA8875_PLLC1,initStrings[initIndex][0]);////PLL Control Register 1
-	delay(1);
-	writeReg(RA8875_PLLC2,initStrings[initIndex][1]);////PLL Control Register 2
-	delay(1);
-	
-	writeReg(RA8875_PCSR,initStrings[initIndex][2]);//Pixel Clock Setting Register
-	delay(1);
+	setSysClock(initStrings[_initIndex][0],initStrings[_initIndex][1],initStrings[_initIndex][2]);
 	//color space setup
 	if (_color_bpp < 16){//256
 		writeReg(RA8875_SYSR,0x00);//256
 	} else {
 		writeReg(RA8875_SYSR,0x0C);//65K
 	}
+<<<<<<< HEAD
 	writeReg(RA8875_HDWR,initStrings[initIndex][3]);//LCD Horizontal Display Width Register
 	writeReg(RA8875_HNDFTR,initStrings[initIndex][4]);//Horizontal Non-Display Period Fine Tuning Option Register
 	writeReg(RA8875_HNDR,initStrings[initIndex][5]);////LCD Horizontal Non-Display Period Register
@@ -379,16 +393,29 @@ void RA8875::initialize(uint8_t initIndex) {
 	writeReg(RA8875_VPWR,initStrings[initIndex][14]);////VSYNC Pulse Width Register
 	setActiveWindow(0,(_width-1),0,(_height-1));//set the active window
 	clearMemory(true);//clear FULL memory
+=======
+	writeReg(RA8875_HDWR,initStrings[_initIndex][3]);//LCD Horizontal Display Width Register
+	writeReg(RA8875_HNDFTR,initStrings[_initIndex][4]);//Horizontal Non-Display Period Fine Tuning Option Register
+	writeReg(RA8875_HNDR,initStrings[_initIndex][5]);////LCD Horizontal Non-Display Period Register
+	writeReg(RA8875_HSTR,initStrings[_initIndex][6]);////HSYNC Start Position Register
+	writeReg(RA8875_HPWR,initStrings[_initIndex][7]);////HSYNC Pulse Width Register
+	writeReg(RA8875_VDHR0,initStrings[_initIndex][8]);////LCD Vertical Display Height Register0
+	writeReg(RA8875_VDHR1,initStrings[_initIndex][9]);////LCD Vertical Display Height Register1
+	writeReg(RA8875_VNDR0,initStrings[_initIndex][10]);////LCD Vertical Non-Display Period Register 0
+	writeReg(RA8875_VNDR1,initStrings[_initIndex][11]);////LCD Vertical Non-Display Period Register 1
+	writeReg(RA8875_VSTR0,initStrings[_initIndex][12]);////VSYNC Start Position Register 0
+	writeReg(RA8875_VSTR1,initStrings[_initIndex][13]);////VSYNC Start Position Register 1
+	writeReg(RA8875_VPWR,initStrings[_initIndex][14]);////VSYNC Pulse Width Register
+	setActiveWindow(0,(_width-1),0,(_height-1));//set the active window
+	clearMemory(true);//clear memory (we are not in multilayer o the visible memory will be cleared)
+>>>>>>> upstream/master
 	//end of hardware initialization
 	delay(10); //100
     //now starts the first time setting up
 	displayOn(true);//turn On Display
 	delay(10);
-	if (_size == Adafruit_480x272 || _size == Adafruit_800x480 || _size == Adafruit_640x480) GPIOX(true);//only for adafruit stuff 
-	PWMsetup(1,true, RA8875_PWM_CLK_DIV1024);//setup PWM ch 1 for backlight
-	PWMout(1,255);//turn on PWM1
+	backlight(true);
 	setCursorBlinkRate(DEFAULTCURSORBLINKRATE);//set default blink rate
-	//if (_textCursorStyle == BLINK) showCursor(false,BLINK); //set default text cursor type and turn off
 	setIntFontCoding(DEFAULTINTENCODING);//set default internal font encoding
 	setFont(INT);	//set internal font use
 	setTextColor(RA8875_WHITE);//since the blackground it's black...
@@ -398,69 +425,118 @@ void RA8875::initialize(uint8_t initIndex) {
 	writeReg(RA8875_F_CURYL,(0 & 0xFF));
 	writeReg(RA8875_F_CURYH,(0 >> 8));
 	delay(1);
-	//now raiseup the sysClock!
-
-	writeReg(RA8875_PLLC1,sysClockPar[initIndex][0]);////PLL Control Register 1
-	delay(1);
-	writeReg(RA8875_PLLC2,sysClockPar[initIndex][1]);////PLL Control Register 2
-	delay(1);
-	writeReg(RA8875_HDWR,initStrings[initIndex][3]);// TESTTT
-	delay(1);
+	//postburner PLL!
+	setSysClock(sysClockPar[_initIndex][0],sysClockPar[_initIndex][1],initStrings[_initIndex][2]);
 	_inited = true;//from here we will go at high speed!
 }
 
 /**************************************************************************/
 /*!
-      Set the display Color Space
+      This function set the sysClock accordly datasheet
 	  Parameters:
-	  Bit per Pixel color (colors): 8 or 16 bit
-	  NOTE:
-	  For display over 272*480 give automatically the ability to use
-	  Layers that at 16 bit it's not possible.
+	  pll1:PLL Control Register 1
+	  pll2:PLL Control Register 2
+	  pixclk:Pixel Clock Setting Register
+	  [private]
 */
 /**************************************************************************/
-void RA8875::setColorBpp(uint8_t colors){
-	if (colors != _color_bpp){//only if necessary
-		if (colors < 16) {//255
-			_color_bpp = 8;
-			writeReg(RA8875_SYSR,0x00);
-			if (_hasLayerLimits) _maxLayers = 2;
-		} else if (colors > 8) {//65K
-			_color_bpp = 16;
-			writeReg(RA8875_SYSR,0x0C);
-			if (_hasLayerLimits) _maxLayers = 1;
-			_currentLayer = 0;
+void RA8875::setSysClock(uint8_t pll1,uint8_t pll2,uint8_t pixclk)
+{
+	writeReg(RA8875_PLLC1,pll1);////PLL Control Register 1
+	delay(1);
+	writeReg(RA8875_PLLC2,pll2);////PLL Control Register 2
+	delay(1);
+	writeReg(RA8875_PCSR,pixclk);//Pixel Clock Setting Register
+	delay(1);
+}
+
+/**************************************************************************/
+/*!
+	return true when register has done the job, otherwise false.
+*/
+/**************************************************************************/
+boolean RA8875::waitPoll(uint8_t regname, uint8_t waitflag) 
+{
+	unsigned long timeout = millis();
+	while (1) {
+		uint8_t temp = readReg(regname);
+		if (!(temp & waitflag)) return true;
+		if ((millis() - timeout) > 100) return false;//emergency exit!
+	}  
+	return false;
+}
+
+/**************************************************************************/
+/*!
+	Just another specified wait routine until job it's done
+	Parameters:
+	res:
+	0x80(for most operations),
+	0x40(BTE wait), 
+	0x01(DMA wait)
+*/
+/**************************************************************************/
+void RA8875::waitBusy(uint8_t res) 
+{
+	//Found this wasn't working properly on the Adafruit 480x272 4.3" display
+	//It would just never come up as ready during the initialise.
+	//clearMemory(true) calls waitBusy(0x80), looking for the memory read/write busy bit.
+	//The status returned from the display was initially 0xC0 which the 
+	//datasheet says corresponds to memory busy and BTE (block transfer) busy.
+	//After about 5ms, this would change to 0x80 and stay there. It
+	//never reported un-busy so this function would hang.
+	//Putting in the timeout allowed the example programs to run and it works!
+	//M.Sandercock
+	uint8_t w; 	
+	unsigned long start = millis();
+	do {
+	if (res == 0x01) writeCommand(RA8875_DMACR);//dma
+	w = readStatus();
+	if ((millis() - start) > 10) return;//expect initialization to take 5ms, but give it some leeway.
+	} while ((w & res) == res);
+}
+
+/**************************************************************************/
+/*!		
+		Clear memory (different from fillScreen!)
+	    Parameters:
+		full: true(clear all memory), false(clear active window only)
+		When in multilayer it automatically clear L1 & L1 and switch back to current layer
+*/
+/**************************************************************************/
+void RA8875::clearMemory(boolean full)
+{
+	uint8_t temp = 0b10000000;
+	if (!full && !_useMultiLayers) temp |= (1 << 6);//set 6
+	writeReg(RA8875_MCLR,temp);
+	waitBusy(0x80);
+	if (full && _useMultiLayers){
+		temp = 0b10000000;
+		uint8_t templ = _currentLayer;//remember current layer
+		if (templ > 0){//we are in L2
+			writeTo(L1);//switch to L1
+		} else {
+			writeTo(L2);//switch to L2
+		}
+		writeReg(RA8875_MCLR,temp);
+		waitBusy(0x80);
+		if (templ > 0){//we was in L2
+			writeTo(L2);//switch back to L2
+		} else {
+			writeTo(L1);//switch back to L1
 		}
 	}
 }
 
 /**************************************************************************/
 /*!
-      Return current Color Space (8 or 16)
+      turn display on/off
 */
 /**************************************************************************/
-uint8_t RA8875::getColorBpp(){
-	return _color_bpp;
+void RA8875::displayOn(boolean on) 
+{
+	on == true ? writeReg(RA8875_PWRR, RA8875_PWRR_NORMAL | RA8875_PWRR_DISPON) : writeReg(RA8875_PWRR, RA8875_PWRR_NORMAL | RA8875_PWRR_DISPOFF);
 }
-
-
-
-/**************************************************************************/
-/*!		
-		Clear memory
-	    Parameters:
-		full: true(clear all memory), false(clear active window only)
-*/
-/**************************************************************************/
-void RA8875::clearMemory(boolean full){
-	uint8_t temp = 0b00000000;
-	if (!full) temp |= (1 << 6);
-	temp |= (1 << 7);//enable start bit
-	writeReg(RA8875_MCLR,temp);
-	//_cursorX = _cursorY = 0;
-	waitBusy(0x80);
-}
-
 
 /**************************************************************************/
 /*!		
@@ -472,7 +548,8 @@ void RA8875::clearMemory(boolean full){
 		YB: Vertical Bottom
 */
 /**************************************************************************/
-void RA8875::setActiveWindow(uint16_t XL,uint16_t XR ,uint16_t YT ,uint16_t YB){
+void RA8875::setActiveWindow(uint16_t XL,uint16_t XR ,uint16_t YT ,uint16_t YB)
+{
 	if (XR >= _width) XR = _width-1;
 	if (YB >= _height) YB = _height-1;
     // X 
@@ -494,7 +571,10 @@ void RA8875::setActiveWindow(uint16_t XL,uint16_t XR ,uint16_t YT ,uint16_t YB){
 		so you need to subtract 1!
 */
 /**************************************************************************/
-uint16_t RA8875::width(void) { return _width; }
+uint16_t RA8875::width(void) const 
+{ 
+	return _width; 
+}
 
 /**************************************************************************/
 /*!		
@@ -503,18 +583,21 @@ uint16_t RA8875::width(void) { return _width; }
 		so you need to subtract 1!
 */
 /**************************************************************************/
-uint16_t RA8875::height(void) { return _height; }
+uint16_t RA8875::height(void) const { 
+	return _height; 
+}
 
-/************************* Text Mode ***********************************/
 
 /**************************************************************************/
 /*!  
 		Change the mode between graphic and text
 		Parameters:
 		m: can be GRAPHIC or TEXT
+		[private]
 */
 /**************************************************************************/
-void RA8875::changeMode(enum RA8875modes m) {
+void RA8875::changeMode(enum RA8875modes m) 
+{
 	//if (m == _currentMode) return;
 	writeCommand(RA8875_MWCR0);
 	if (m == GRAPHIC){
@@ -533,13 +616,156 @@ void RA8875::changeMode(enum RA8875modes m) {
 }
 
 /**************************************************************************/
+<<<<<<< HEAD
+=======
+/*!
+      Change the beam scan direction on display
+	  Parameters:
+	  invertH:true(inverted),false(normal) horizontal
+	  invertV:true(inverted),false(normal) vertical
+*/
+/**************************************************************************/
+void RA8875::scanDirection(boolean invertH,boolean invertV)
+{
+	invertH == true ? _DPCRReg |= (1 << 3) : _DPCRReg &= ~(1 << 3);
+	invertV == true ? _DPCRReg |= (1 << 2) : _DPCRReg &= ~(1 << 2);
+	writeReg(RA8875_DPCR,_DPCRReg);
+}
+
+/**************************************************************************/
+/*!
+      Change the rotation of the screen
+	    Graphics and text will be rotated. Anything already on the screen
+		    will be moved to the new orientation but mirrored if changing
+			from portrait to landscape. 
+	    Use same rotation numbers as other Adafruit displays.
+		Coorinates are flipped, but not rotated:
+			X is always the long axis of the screen
+			Y is always the short axis of the screen
+			Therefore _width and _height don't change
+			(0,0) is top left for your orientation
+	    Note this also flips the touchReadPixel() calibration to match.
+	  Parameters:
+	  rotation:
+	    0 = default, connector to bottom
+		1 = connector to right
+		2 = connector to top
+		3 = connector to left
+*/
+/**************************************************************************/
+void RA8875::setRotation(uint8_t rotation)
+{
+	_rotation = rotation % 4; //limit to the range 0-3
+	switch (_rotation) {
+	case 0:
+		//default, connector to bottom
+		scanDirection(0,0);
+		setFontRotate(false);
+		_width = WIDTH;
+		_height = HEIGHT;
+		#if !defined(USE_EXTERNALTOUCH)
+			if (!touchCalibrated()) {
+				_tsAdcMinX = 0; 
+				_tsAdcMinY = 0; 
+				_tsAdcMaxX = 1024; 
+				_tsAdcMaxY = 1024;
+			} else {
+				_tsAdcMinX = TOUCSRCAL_XLOW;
+				_tsAdcMinY = TOUCSRCAL_YLOW;
+				_tsAdcMaxX = TOUCSRCAL_XHIGH;
+				_tsAdcMaxY = TOUCSRCAL_YHIGH;
+			}
+		#endif
+    break;
+	case 1:
+		//connector to right
+		scanDirection(1,0);
+		setFontRotate(true);
+		_width = HEIGHT;
+		_height = WIDTH;
+		#if !defined(USE_EXTERNALTOUCH)
+			if (!touchCalibrated()) {
+				_tsAdcMinX = 1024; 
+				_tsAdcMinY = 0; 
+				_tsAdcMaxX = 0; 
+				_tsAdcMaxY = 1024;
+			} else {
+				_tsAdcMinX = TOUCSRCAL_XHIGH;
+				_tsAdcMinY = TOUCSRCAL_YLOW;
+				_tsAdcMaxX = TOUCSRCAL_XLOW;
+				_tsAdcMaxY = TOUCSRCAL_YHIGH;
+			}
+		#endif
+    break;
+	case 2:
+		//connector to top
+		scanDirection(1,1);
+		setFontRotate(false);
+		_width = WIDTH;
+		_height = HEIGHT;
+		#if !defined(USE_EXTERNALTOUCH)
+			if (!touchCalibrated()) {
+				_tsAdcMinX = 1024; 
+				_tsAdcMinY = 1024; 
+				_tsAdcMaxX = 0; 
+				_tsAdcMaxY = 0;
+			} else {
+				_tsAdcMinX = TOUCSRCAL_XHIGH;
+				_tsAdcMinY = TOUCSRCAL_YHIGH;
+				_tsAdcMaxX = TOUCSRCAL_XLOW;
+				_tsAdcMaxY = TOUCSRCAL_YLOW;
+			}
+		#endif
+    break;
+	case 3:
+		//connector to left
+		scanDirection(0,1);
+		setFontRotate(true);
+		_width = HEIGHT;
+		_height = WIDTH;
+		#if !defined(USE_EXTERNALTOUCH)
+			if (!touchCalibrated()) {
+				_tsAdcMinX = 0; 
+				_tsAdcMinY = 1024; 
+				_tsAdcMaxX = 1024; 
+				_tsAdcMaxY = 0;
+			} else {
+				_tsAdcMinX = TOUCSRCAL_XLOW;
+				_tsAdcMinY = TOUCSRCAL_YHIGH;
+				_tsAdcMaxX = TOUCSRCAL_XHIGH;
+				_tsAdcMaxY = TOUCSRCAL_YLOW;
+			}
+		#endif
+    break;
+	}
+}
+
+/**************************************************************************/
+/*!
+      Get rotation setting
+*/
+/**************************************************************************/
+uint8_t RA8875::getRotation()
+{
+	return _rotation;
+}
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								TEXT STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+/**************************************************************************/
+>>>>>>> upstream/master
 /*!		Upload user custom char or symbol to CGRAM, max 255
 		Parameters:
 		symbol[]: an 8bit x 16 char in an array. Must be exact 16 bytes
 		address: 0...255 the address of the CGRAM where to store the char
 */
 /**************************************************************************/
-void RA8875::uploadUserChar(const uint8_t symbol[],uint8_t address) {
+void RA8875::uploadUserChar(const uint8_t symbol[],uint8_t address) 
+{
+	uint8_t tempMWCR1 = readReg(RA8875_MWCR1);//thanks MorganSandercock
 	bool modeChanged = false;
 	uint8_t tempMWCR1 = readReg(RA8875_MWCR1);
 	uint8_t i;
@@ -553,8 +779,13 @@ void RA8875::uploadUserChar(const uint8_t symbol[],uint8_t address) {
 	for (i=0;i<16;i++){
 		writeData(symbol[i]);
 	}
+<<<<<<< HEAD
 	writeReg(RA8875_MWCR1, tempMWCR1); //restore the previous writeTo
 	if (modeChanged) changeMode(TEXT); //back to text
+=======
+	writeReg(RA8875_MWCR1, tempMWCR1);//restore register (MorganSandercock)
+	if (modeChanged) changeMode(TEXT);//back to text
+>>>>>>> upstream/master
 }
 
 /**************************************************************************/
@@ -566,7 +797,9 @@ void RA8875::uploadUserChar(const uint8_t symbol[],uint8_t address) {
 		more than a char slot they can be showed combined (see examples)
 */
 /**************************************************************************/
-void RA8875::showUserChar(uint8_t symbolAddrs,uint8_t wide) {
+void RA8875::showUserChar(uint8_t symbolAddrs,uint8_t wide) 
+{
+	if (_currentMode != TEXT) changeMode(TEXT);
 	uint8_t oldRegState = _FNCR0Reg;
 	uint8_t i;
 	bitSet(oldRegState,7);//set to CGRAM
@@ -599,7 +832,8 @@ void RA8875::showUserChar(uint8_t symbolAddrs,uint8_t wide) {
 		default:ISO_IEC_8859_1
 */
 /**************************************************************************/
-void RA8875::setIntFontCoding(enum RA8875fontCoding f) {
+void RA8875::setIntFontCoding(enum RA8875fontCoding f) 
+{
 	uint8_t temp = _FNCR0Reg;
 	temp &= ~((1<<1) | (1<<0));// Clear bits 1 and 0
 	switch (f){
@@ -633,7 +867,8 @@ void RA8875::setIntFontCoding(enum RA8875fontCoding f) {
 		erf:ROM Font Family   (STANDARD, ARIAL, ROMAN, BOLD)
 */
 /**************************************************************************/
-void RA8875::setExternalFontRom(enum RA8875extRomType ert, enum RA8875extRomCoding erc, enum RA8875extRomFamily erf){
+void RA8875::setExternalFontRom(enum RA8875extRomType ert, enum RA8875extRomCoding erc, enum RA8875extRomFamily erf)
+{
 	uint8_t temp = _SFRSETReg;//just to preserve the reg in case something wrong
 	switch(ert){ //type of rom
 		case GT21L16T1W:
@@ -647,7 +882,6 @@ void RA8875::setExternalFontRom(enum RA8875extRomType ert, enum RA8875extRomCodi
 		case GT30H24T3Y:
 		case ER3303_1://encoding GB12345
 			temp &= 0x1F; temp |= 0x40;
-			//erc = GB12345;//forced
 		break;
 		case GT23L24M1Z:
 			temp &= 0x1F; temp |= 0x60;
@@ -711,7 +945,8 @@ void RA8875::setExternalFontRom(enum RA8875extRomType ert, enum RA8875extRomCodi
 		false:(change only the register container, useful during config)
 */
 /**************************************************************************/
-void RA8875::setExtFontFamily(enum RA8875extRomFamily erf,boolean setReg) {
+void RA8875::setExtFontFamily(enum RA8875extRomFamily erf,boolean setReg) 
+{
 	_fontFamily = erf;
 	switch(erf){	//check rom font family
 		case STANDARD:
@@ -740,7 +975,8 @@ void RA8875::setExtFontFamily(enum RA8875extRomFamily erf,boolean setReg) {
 		s: Font source (INT,EXT)
 */
 /**************************************************************************/
-void RA8875::setFont(enum RA8875fontSource s) {
+void RA8875::setFont(enum RA8875fontSource s) 
+{
 	//enum RA8875fontCoding c
 	if (s == INT){
 		//check the font coding
@@ -778,7 +1014,8 @@ void RA8875::setFont(enum RA8875fontSource s) {
 		align: true,false
 */
 /**************************************************************************/
-void RA8875::setFontFullAlign(boolean align) {
+void RA8875::setFontFullAlign(boolean align) 
+{
 	align == true ? _FNCR1Reg |= (1 << 7) : _FNCR1Reg &= ~(1 << 7);
 	writeReg(RA8875_FNCR1,_FNCR1Reg);
 }
@@ -790,7 +1027,8 @@ void RA8875::setFontFullAlign(boolean align) {
 		rot: true,false
 */
 /**************************************************************************/
-void RA8875::setFontRotate(boolean rot) {
+void RA8875::setFontRotate(boolean rot) 
+{
 	rot == true ? _FNCR1Reg |= (1 << 4) : _FNCR1Reg &= ~(1 << 4);
 	writeReg(RA8875_FNCR1,_FNCR1Reg);
 }
@@ -802,7 +1040,8 @@ void RA8875::setFontRotate(boolean rot) {
 		pix: 0...63 pixels
 */
 /**************************************************************************/
-void RA8875::setFontInterline(uint8_t pix){
+void RA8875::setFontInterline(uint8_t pix)
+{
 	if (pix > 0x3F) pix = 0x3F;
 	_fontInterline = pix;
 	//_FWTSETReg &= 0xC0;
@@ -817,7 +1056,8 @@ void RA8875::setFontInterline(uint8_t pix){
 		y:vertical in pixels
 */
 /**************************************************************************/
-void RA8875::setCursor(uint16_t x, uint16_t y) {
+void RA8875::setCursor(uint16_t x, uint16_t y) 
+{
 	if (!_textWrap){
 		if (x >= _width) x = _width-1;
 		if (y >= _height) y = _height-1;
@@ -839,7 +1079,8 @@ void RA8875::setCursor(uint16_t x, uint16_t y) {
 		USE: xxx.getCursor(&myX,&myY);
 */
 /**************************************************************************/
-void RA8875::getCursor(uint16_t *x, uint16_t *y) {
+void RA8875::getCursor(uint16_t *x, uint16_t *y) 
+{
 	uint8_t t1,t2;
 	t1 = readReg(RA8875_F_CURXL);
 	t2 = readReg(RA8875_F_CURXH);
@@ -857,7 +1098,8 @@ void RA8875::getCursor(uint16_t *x, uint16_t *y) {
 		blink: true=blink cursor
 */
 /**************************************************************************/
-void RA8875::showCursor(enum RA8875tcursor c,bool blink){
+void RA8875::showCursor(enum RA8875tcursor c,bool blink)
+{
     uint8_t MWCR1Reg = readReg(RA8875_MWCR1) & 0x01;
     uint8_t cW = 0;
     uint8_t cH = 0;
@@ -898,7 +1140,8 @@ void RA8875::showCursor(enum RA8875tcursor c,bool blink){
 		rate:blink speed (fast 0...255 slow)
 */
 /**************************************************************************/
-void RA8875::setCursorBlinkRate(uint8_t rate){
+void RA8875::setCursorBlinkRate(uint8_t rate)
+{
 	writeReg(RA8875_BTCR,rate);//set blink rate
 }
 
@@ -910,7 +1153,8 @@ void RA8875::setCursorBlinkRate(uint8_t rate){
 		bColor:16bit background color RGB565
 */
 /**************************************************************************/
-void RA8875::setTextColor(uint16_t fColor, uint16_t bColor){
+void RA8875::setTextColor(uint16_t fColor, uint16_t bColor)
+{
 	setForegroundColor(fColor);
 	setBackgroundColor(bColor);
 	_FNCR1Reg &= ~(1 << 6);
@@ -925,7 +1169,8 @@ void RA8875::setTextColor(uint16_t fColor, uint16_t bColor){
 */
 /**************************************************************************/
 
-void RA8875::setTextColor(uint16_t fColor){
+void RA8875::setTextColor(uint16_t fColor)
+{
 	setForegroundColor(fColor);
 	_FNCR1Reg |= (1 << 6);
 	writeReg(RA8875_FNCR1,_FNCR1Reg);
@@ -938,7 +1183,8 @@ void RA8875::setTextColor(uint16_t fColor){
 		scale:0..3  -> 0:normal, 1:x2, 2:x3, 3:x4
 */
 /**************************************************************************/
-void RA8875::setFontScale(uint8_t scale){
+void RA8875::setFontScale(uint8_t scale)
+{
 	if (scale > 3) scale = 3;
  	_FNCR1Reg &= ~(0xF); // clear bits from 0 to 3
 	_FNCR1Reg |= scale << 2;
@@ -948,7 +1194,17 @@ void RA8875::setFontScale(uint8_t scale){
 	_textVScale = scale;
 }
 
-void RA8875::setFontScale(uint8_t vscale,uint8_t hscale){
+/**************************************************************************/
+/*!		
+		Set the Text size by it's multiple. normal should=0, max is 3 (x4)
+		This time you can specify different values for vertical and horizontal
+		Parameters:
+		vscale:0..3  -> 0:normal, 1:x2, 2:x3, 3:x4
+		hscale:0..3  -> 0:normal, 1:x2, 2:x3, 3:x4
+*/
+/**************************************************************************/
+void RA8875::setFontScale(uint8_t vscale,uint8_t hscale)
+{
 	if (vscale > 3) vscale = 3;
 	if (hscale > 3) hscale = 3;
  	_FNCR1Reg &= ~(0xF); // clear bits from 0 to 3
@@ -961,6 +1217,25 @@ void RA8875::setFontScale(uint8_t vscale,uint8_t hscale){
 
 /**************************************************************************/
 /*!		
+		Normally at every char the cursor advance by one
+		You can stop/enable this by using this function
+		Parameters:
+		on:true(auto advance - default), false:(stop auto advance)
+*/
+/**************************************************************************/
+void RA8875::setFontAdvance(bool on)
+{
+	if (on){
+		bitClear(_MWCR0Reg,1);
+	} else {
+		bitSet(_MWCR0Reg,1);
+	}
+	//bitWrite(_MWCR0Reg,1,!on);
+	writeReg(RA8875_MWCR0,_MWCR0Reg);
+}
+
+/**************************************************************************/
+/*!		
 		Choose between 16x16(8x16) - 24x24(12x24) - 32x32(16x32)
 		for External Font ROM
 		Parameters:
@@ -968,7 +1243,8 @@ void RA8875::setFontScale(uint8_t vscale,uint8_t hscale){
 		halfSize:true/false (16x16 -> 8x16 and so on...)
 */
 /**************************************************************************/
-void RA8875::setFontSize(enum RA8875tsize ts,boolean halfSize){
+void RA8875::setFontSize(enum RA8875tsize ts,boolean halfSize)
+{
 	switch(ts){
 		case X16:
 			_FWTSETReg &= 0x3F;
@@ -995,7 +1271,8 @@ void RA8875::setFontSize(enum RA8875tsize ts,boolean halfSize){
 		Parameters: inColums (true:returns max colums)
 */
 /**************************************************************************/
-uint8_t RA8875::getFontWidth(boolean inColums) {
+uint8_t RA8875::getFontWidth(boolean inColums) 
+{
     uint8_t temp = (((_FNCR0Reg >> 2) & 0x3) + 1) * 8;
 	if (inColums){
 		if (_textHScale < 1) return width() / temp;
@@ -1017,7 +1294,8 @@ uint8_t RA8875::getFontWidth(boolean inColums) {
 		Parameters: inRowss (true:returns max rows)
 */
 /**************************************************************************/
-uint8_t RA8875::getFontHeight(boolean inRows) {
+uint8_t RA8875::getFontHeight(boolean inRows) 
+{
     uint8_t temp = (((_FNCR0Reg >> 0) & 0x3) + 1) * 16;
 	if (inRows){
 		if (_textVScale < 1) return height() / temp;
@@ -1037,7 +1315,8 @@ uint8_t RA8875::getFontHeight(boolean inRows) {
 		spc:0...63pix (default 0=off)
 */
 /**************************************************************************/
-void RA8875::setFontSpacing(uint8_t spc){//ok
+void RA8875::setFontSpacing(uint8_t spc)
+{
 	if (spc > 0x3F) spc = 0x3F;
 	_fontSpacing = spc;
 	_FWTSETReg &= 0xC0;
@@ -1052,6 +1331,7 @@ void RA8875::setFontSpacing(uint8_t spc){//ok
 		
 */
 /**************************************************************************/
+<<<<<<< HEAD
 void RA8875::textWrite(const char* buffer, uint16_t len) {
 	uint16_t i,v;
 	uint8_t t1,t2;
@@ -1089,21 +1369,145 @@ void RA8875::textWrite(const char* buffer, uint16_t len) {
 				waitBusy(0x80);
 		}
 	}
+=======
+void RA8875::textWrite(const char* buffer, uint16_t len)
+ {
+	//uint8_t start = 0;
+	//uint16_t i,ny;
+	uint16_t i,v;
+	uint8_t t1,t2;
+	if (_currentMode == GRAPHIC) changeMode(TEXT);
+	if (len == 0) len = strlen(buffer);
+	/*
+	if (len > 1 && ((buffer[0] == '\r') && (buffer[1] == '\n'))){//got a println?
+		//get current y
+		t1 = readReg(RA8875_F_CURYL);
+		t2 = readReg(RA8875_F_CURYH);
+		//calc new line y
+		ny = (t2 << 8) | (t1 & 0xFF);
+		//update y
+		ny = ny + (16 + (16*_textVScale))+_fontInterline;//TODO??
+		setCursor(0,ny);
+		start = 2;
+	#if defined(ENERGIA) || defined(__AVR_ATmega32U4__)
+			//oops! Energia 013 seems have a bug here! Should send a \r but only \n given! (MaxMC)
+			//The Micro also seems to only ever send one char at a time to this function, so
+			//the test above will always fail to find the\r\n pair. (M.Sanderscock)
+		} else if (len > 0 && ((buffer[0] == '\n'))){
+			//get current y
+			t1 = readReg(RA8875_F_CURYL);
+			t2 = readReg(RA8875_F_CURYH);
+			//calc new line y
+			ny = (t2 << 8) | (t1 & 0xFF);
+			//update y
+			ny = ny + (16 + (16*_textVScale))+_fontInterline;//TODO??
+			setCursor(0,ny);
+			start = 1;
+		}
+	#else
+		}
+	#endif
+	*/
+	writeCommand(RA8875_MRWC);
+	/*
+	for (i=start;i<len;i++){
+		if (buffer[i] == '\n' || buffer[i] == '\r') {
+			//_cursor_y += textsize * 8;
+			//_cursor_x  = 0;
+		} else {
+			writeData(buffer[i]);
+			waitBusy(0x80);
+		}
+	*/
+	for (i=0;i<len;i++){
+		switch(buffer[i]) {
+			case '\r':
+				//Ignore carriage-return, only detect \n newline 
+			break;
+			case '\n':
+				//Move cursor down - X or Y depends on the rotation
+				if (_rotation == 0 || _rotation == 2) {
+					//y coordinate is vertical
+					t1 = readReg(RA8875_F_CURYL);
+					t2 = readReg(RA8875_F_CURYH);
+					v = (t2 << 8) | (t1 & 0xFF);
+					v += (16 + (16*_textVScale))+_fontInterline;
+					setCursor(0,v);
+				} else {
+					//x coordinate is vertical
+					t1 = readReg(RA8875_F_CURXL);
+					t2 = readReg(RA8875_F_CURXH);
+					v = (t2 << 8) | (t1 & 0xFF);
+					v += (16 + (16*_textVScale))+_fontInterline;
+					setCursor(v,0);
+				} 
+			break;
+			default:
+				//write a normal char
+				writeData(buffer[i]);
+				waitBusy(0x80);
+		}
+	}
+}
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								COLOR STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+
+/**************************************************************************/
+/*!
+      Set the display 'Color Space'
+	  Parameters:
+	  Bit per Pixel color (colors): 8 or 16 bit
+	  NOTE:
+	  For display over 272*480 give the ability to use
+	  Layers since at 16 bit it's not possible.
+*/
+/**************************************************************************/
+void RA8875::setColorBpp(uint8_t colors)
+{
+	if (colors != _color_bpp){//only if necessary
+		if (colors < 16) {//255
+			_color_bpp = 8;
+			writeReg(RA8875_SYSR,0x00);
+			if (_hasLayerLimits) _maxLayers = 2;
+		} else if (colors > 8) {//65K
+			_color_bpp = 16;
+			writeReg(RA8875_SYSR,0x0C);
+			if (_hasLayerLimits) _maxLayers = 1;
+			_currentLayer = 0;
+		}
+	}
+}
+
+/**************************************************************************/
+/*!
+      Return current Color Space (8 or 16)
+*/
+/**************************************************************************/
+uint8_t RA8875::getColorBpp(void)
+{
+	return _color_bpp;
+>>>>>>> upstream/master
 }
 
 /**************************************************************************/
 /*!
       Sets set the foreground color using 16bit RGB565 color
+	  It handles automatically color conversion when in 8 bit!
 	  Parameters:
 	  color:16bit color RGB565
 */
 /**************************************************************************/
-void RA8875::setForegroundColor(uint16_t color){
+void RA8875::setForegroundColor(uint16_t color)
+{
 	uint8_t idx = 0;
-	if (_color_bpp < 16) idx = 2;//65K
+	if (_color_bpp < 16) idx = 3;//8bit
 	writeReg(RA8875_FGCR0,((color & 0xF800) >> _RA8875colorMask[idx]));
 	writeReg(RA8875_FGCR1,((color & 0x07E0) >> _RA8875colorMask[idx+1]));
-	writeReg(RA8875_FGCR2,(color & 0x001F));
+	writeReg(RA8875_FGCR2,((color & 0x001F) >> _RA8875colorMask[idx+2]));
 }
 /**************************************************************************/
 /*!
@@ -1114,7 +1518,8 @@ void RA8875::setForegroundColor(uint16_t color){
 	  B:8bit BLUE
 */
 /**************************************************************************/
-void RA8875::setForegroundColor(uint8_t R,uint8_t G,uint8_t B){
+void RA8875::setForegroundColor(uint8_t R,uint8_t G,uint8_t B)
+{
 	writeReg(RA8875_FGCR0,R);
 	writeReg(RA8875_FGCR1,G);
 	writeReg(RA8875_FGCR2,B);
@@ -1122,16 +1527,18 @@ void RA8875::setForegroundColor(uint8_t R,uint8_t G,uint8_t B){
 /**************************************************************************/
 /*!
       Sets set the background color using 16bit RGB565 color
+	  It handles automatically color conversion when in 8 bit!
 	  Parameters:
 	  color:16bit color RGB565
 */
 /**************************************************************************/
-void RA8875::setBackgroundColor(uint16_t color){
+void RA8875::setBackgroundColor(uint16_t color)
+{
 	uint8_t idx = 0;
-	if (_color_bpp < 16) idx = 2;//65K
+	if (_color_bpp < 16) idx = 3;//8bit
 	writeReg(RA8875_BGCR0,((color & 0xF800) >> _RA8875colorMask[idx]));//11
 	writeReg(RA8875_BGCR1,((color & 0x07E0) >> _RA8875colorMask[idx+1]));//5
-	writeReg(RA8875_BGCR2,(color & 0x001F));
+	writeReg(RA8875_BGCR2,((color & 0x001F) >> _RA8875colorMask[idx+2]));//0
 }
 /**************************************************************************/
 /*!
@@ -1142,7 +1549,8 @@ void RA8875::setBackgroundColor(uint16_t color){
 	  B:8bit BLUE
 */
 /**************************************************************************/
-void RA8875::setBackgroundColor(uint8_t R,uint8_t G,uint8_t B){
+void RA8875::setBackgroundColor(uint8_t R,uint8_t G,uint8_t B)
+{
 	//_color_bpp > 8
 	writeReg(RA8875_BGCR0,R);
 	writeReg(RA8875_BGCR1,G);
@@ -1151,16 +1559,18 @@ void RA8875::setBackgroundColor(uint8_t R,uint8_t G,uint8_t B){
 /**************************************************************************/
 /*!
       Sets set the trasparent background color using 16bit RGB565 color
+	  It handles automatically color conversion when in 8 bit!
 	  Parameters:
 	  color:16bit color RGB565
 */
 /**************************************************************************/
-void RA8875::setTrasparentColor(uint16_t color){
+void RA8875::setTrasparentColor(uint16_t color)
+{
 	uint8_t idx = 0;
-	if (_color_bpp < 16) idx = 2;//65K
+	if (_color_bpp < 16) idx = 3;//8bit
 	writeReg(RA8875_BGTR0,((color & 0xF800) >> _RA8875colorMask[idx]));
 	writeReg(RA8875_BGTR1,((color & 0x07E0) >> _RA8875colorMask[idx+1]));
-	writeReg(RA8875_BGTR2,(color & 0x001F));
+	writeReg(RA8875_BGTR2,((color & 0x001F) >> _RA8875colorMask[idx+2]));
 }
 /**************************************************************************/
 /*!
@@ -1171,13 +1581,20 @@ void RA8875::setTrasparentColor(uint16_t color){
 	  B:8bit BLUE
 */
 /**************************************************************************/
-void RA8875::setTrasparentColor(uint8_t R,uint8_t G,uint8_t B){
+void RA8875::setTrasparentColor(uint8_t R,uint8_t G,uint8_t B)
+{
 	//_color_bpp > 8
 	writeReg(RA8875_BGTR0,R);
 	writeReg(RA8875_BGTR1,G);
 	writeReg(RA8875_BGTR2,B);
 }
-/************************* Graphics ***********************************/
+
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								DRAW STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
 
 /**************************************************************************/
 /*!		Set graphic cursor beween 8 different ones.
@@ -1186,7 +1603,8 @@ void RA8875::setTrasparentColor(uint8_t R,uint8_t G,uint8_t B){
 		cur: 0...7
 */
 /**************************************************************************/
-void RA8875::setGraphicCursor(uint8_t cur) {
+void RA8875::setGraphicCursor(uint8_t cur) 
+{
 	if (cur > 7) cur = 7;
 	uint8_t temp = readReg(RA8875_MWCR1);
 	temp &= ~(0x70);//clear bit 6,5,4
@@ -1207,7 +1625,8 @@ void RA8875::setGraphicCursor(uint8_t cur) {
 		cur: true,false
 */
 /**************************************************************************/
-void RA8875::showGraphicCursor(boolean cur) {
+void RA8875::showGraphicCursor(boolean cur) 
+{
 	uint8_t temp = readReg(RA8875_MWCR1);
 	cur == true ? temp |= (1 << 7) : temp &= ~(1 << 7);
 	if (_useMultiLayers){
@@ -1219,6 +1638,7 @@ void RA8875::showGraphicCursor(boolean cur) {
 }
 
 /**************************************************************************/
+<<<<<<< HEAD
 /*!
 	Origin from Adafruit but modified for better exit.
 */
@@ -1260,6 +1680,8 @@ void RA8875::waitBusy(uint8_t res) {
 
 
 /**************************************************************************/
+=======
+>>>>>>> upstream/master
 /*!		
 		Set the position for Graphic Write
 		Parameters:
@@ -1267,20 +1689,23 @@ void RA8875::waitBusy(uint8_t res) {
 		y:vertical position
 */
 /**************************************************************************/
-void RA8875::setXY(int16_t x, int16_t y) {
+void RA8875::setXY(int16_t x, int16_t y) 
+{
 	if (x < 0) x = 0;
 	if (y < 0) y = 0;
 	setX(x);
 	setY(y);
 }
 
-void RA8875::setX(uint16_t x) {
+void RA8875::setX(uint16_t x) 
+{
 	if (x >= _width) x = _width-1;
 	writeReg(RA8875_CURH0, x);
 	writeReg(RA8875_CURH1, (x >> 8)); 
 }
 
-void RA8875::setY(uint16_t y) {
+void RA8875::setY(uint16_t y) 
+{
 	if (y >= _height) y = _height-1;
 	writeReg(RA8875_CURV0, y);
 	writeReg(RA8875_CURV1, y >> 8);  
@@ -1295,7 +1720,8 @@ void RA8875::setY(uint16_t y) {
 
 */
 /**************************************************************************/
-/* void RA8875::pushPixels(uint32_t num, uint16_t p) {
+/* void RA8875::pushPixels(uint32_t num, uint16_t p) 
+{
 	startSend();
 	SPI.tranfer(RA8875_DATAWRITE);
 	while (num--) {
@@ -1307,7 +1733,11 @@ void RA8875::setY(uint16_t y) {
  */
 
  
-
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								SCROLL STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
 /**************************************************************************/
 /*!     
         Sets the scroll mode. This is controlled by bits 6 and 7 of  
@@ -1315,7 +1745,8 @@ void RA8875::setY(uint16_t y) {
 		Author: The Experimentalist
 */
 /**************************************************************************/
-void RA8875::setScrollMode(enum RA8875scrollMode mode){
+void RA8875::setScrollMode(enum RA8875scrollMode mode)
+{
     uint8_t reg = readReg(RA8875_LTPR0);
     reg &= 0x3F;            // Clear bits 6 and 7 to zero
     switch(mode){           // bit 7,6 of LTPR0
@@ -1350,7 +1781,8 @@ void RA8875::setScrollMode(enum RA8875scrollMode mode){
 
 */
 /**************************************************************************/
-void RA8875::setScrollWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB){
+void RA8875::setScrollWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB)
+{
 	checkLimitsHelper(XL,YT);
 	checkLimitsHelper(XR,YB);
 	
@@ -1374,7 +1806,8 @@ void RA8875::setScrollWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB){
 
 */
 /**************************************************************************/
-void RA8875::scroll(uint16_t x,uint16_t y){ 
+void RA8875::scroll(uint16_t x,uint16_t y)
+{ 
 	if (y > _scrollYB) y = _scrollYB;//??? mmmm... not sure
 	if (_scrollXL == 0 && _scrollXR == 0 && _scrollYT == 0 && _scrollYB == 0){
 		//do nothing, scroll window inactive
@@ -1387,12 +1820,18 @@ void RA8875::scroll(uint16_t x,uint16_t y){
 	}
 }	 
 
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								DMA STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
 /**************************************************************************/
 /*!
 
 */
 /**************************************************************************/
-void RA8875::DMA_blockModeSize(int16_t BWR,int16_t BHR,int16_t SPWR){
+void RA8875::DMA_blockModeSize(int16_t BWR,int16_t BHR,int16_t SPWR)
+{
   	writeReg(RA8875_DTNR0,BWR);
   	writeReg(RA8875_BWR1,BWR >> 8);
 
@@ -1408,7 +1847,8 @@ void RA8875::DMA_blockModeSize(int16_t BWR,int16_t BHR,int16_t SPWR){
 
 */
 /**************************************************************************/
-void RA8875::DMA_startAddress(unsigned long adrs){ 
+void RA8875::DMA_startAddress(unsigned long adrs)
+{ 
   	writeReg(RA8875_SSAR0,adrs);
   	writeReg(RA8875_SSAR1,adrs >> 8);
 	writeReg(RA8875_SSAR2,adrs >> 16);
@@ -1423,7 +1863,8 @@ void RA8875::DMA_startAddress(unsigned long adrs){
 
 */
 /**************************************************************************/
-void RA8875::drawFlashImage(int16_t x,int16_t y,int16_t w,int16_t h,uint8_t picnum){  
+void RA8875::drawFlashImage(int16_t x,int16_t y,int16_t w,int16_t h,uint8_t picnum)
+{  
 	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
 	checkLimitsHelper(x,y);
 	checkLimitsHelper(w,h);
@@ -1441,12 +1882,21 @@ void RA8875::drawFlashImage(int16_t x,int16_t y,int16_t w,int16_t h,uint8_t picn
 	waitBusy(0x01);
 } 
 
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								BTE STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
 /**************************************************************************/
 /*!
 
 */
 /**************************************************************************/
-void RA8875::BTE_size(uint16_t w, uint16_t h){
+void RA8875::BTE_size(uint16_t w, uint16_t h)
+{
+	if (w > _width) w = _width;
+	if (h > _height) h = _height;
     writeReg(RA8875_BEWR0,w);//BET area width literacy  
     writeReg(RA8875_BEWR1,w >> 8);//BET area width literacy	   
     writeReg(RA8875_BEHR0,h);//BET area height literacy
@@ -1458,7 +1908,8 @@ void RA8875::BTE_size(uint16_t w, uint16_t h){
 
 */
 /**************************************************************************/
-void RA8875::BTE_source(uint16_t SX,uint16_t DX ,uint16_t SY ,uint16_t DY){
+void RA8875::BTE_source(uint16_t SX,uint16_t DX ,uint16_t SY ,uint16_t DY)
+{
 	uint8_t temp0,temp1;
     writeReg(RA8875_HSBE0,SX);//BTE horizontal position of read/write data
     writeReg(RA8875_HSBE1,SX >> 8);//BTE horizontal position of read/write data   
@@ -1488,7 +1939,8 @@ void RA8875::BTE_source(uint16_t SX,uint16_t DX ,uint16_t SY ,uint16_t DY){
 
 */
 /**************************************************************************/
-void RA8875::BTE_ROP_code(unsigned char setx){//
+void RA8875::BTE_ROP_code(unsigned char setx)
+{
     writeReg(RA8875_BECR1,setx);//BECR1	   
 }
 
@@ -1497,881 +1949,35 @@ void RA8875::BTE_ROP_code(unsigned char setx){//
 
 */
 /**************************************************************************/
-void RA8875::BTE_enable(void) {	
+void RA8875::BTE_enable(bool on) 
+{	
 	uint8_t temp = readReg(RA8875_BECR0);
-	temp |= (1 << 7); //bit set 7
+	if (on){
+		//temp |= (1 << 7); //bit set 7
+		bitSet(temp,7);
+	} else {
+		bitClear(temp,7);
+	}
 	writeReg(RA8875_BECR0,temp);  
 }
 
-/**************************************************************************/
-/*! return the current drawing layer. If layers are OFF, return 255
-
-*/
-/**************************************************************************/
-uint8_t RA8875::getCurrentLayer(void){
-	if (!_useMultiLayers) return 255;
-	return _currentLayer;
-}
-
-/**************************************************************************/
-/*! This is the most important function to write on:
-	LAYERS
-	CGRAM
-	PATTERN
-	CURSOR
-	Parameter:
-	d (L1, L2, CGRAM, PATTERN, CURSOR)
-	When writing on layers 0 or 1, if the layers are not enable it will enable automatically
-	If the display doesn't support layers, it will automatically switch to 8bit color
-	Remember that when layers are ON you need to disable manually, once that only Layer 1 will be visible
-
-*/
-/**************************************************************************/
-void RA8875::writeTo(enum RA8875writes d){
-	uint8_t temp = readReg(RA8875_MWCR1);
-	switch(d){
-		case L1:
-			if (!_useMultiLayers) useLayers(true);//turn on multiple layers if it's off
-			temp &= ~((1<<3) | (1<<2));// Clear bits 3 and 2
-			temp &= ~(1 << 0); //clear bit 0
-			_currentLayer = 0;
-		break;
-		case L2:
-			if (!_useMultiLayers) useLayers(true);//turn on multiple layers if it's off
-			temp &= ~((1<<3) | (1<<2));// Clear bits 3 and 2
-			temp |= (1 << 0); //bit set 0
-			_currentLayer = 1;
-		break;
-		case CGRAM: 
-			temp &= ~(1 << 3); //clear bit 3
-			temp |= (1 << 2); //bit set 2
-			if (bitRead(_FNCR0Reg,7)){//REG[0x21] bit7 must be 0
-				_FNCR0Reg &= ~(1 << 7); //clear bit 7
-				writeReg(RA8875_FNCR0,_FNCR0Reg);  
-			}
-		break;
-		case PATTERN:
-			temp |= (1 << 3); //bit set 3
-			temp |= (1 << 2); //bit set 2
-		break;
-		case CURSOR:
-			temp |= (1 << 3); //bit set 3
-			temp &= ~(1 << 2); //clear bit 2
-		break;
-		default:
-		break;
-	}
-	writeReg(RA8875_MWCR1,temp);  
-}
-
-/**************************************************************************/
-/*!
-
-*/
-/**************************************************************************/
-/* void RA8875::fillRect(void) {
-	writeCommand(RA8875_DCR);
-	writeData(RA8875_DCR_LINESQUTRI_STOP | RA8875_DCR_DRAWSQUARE);
-	writeData(RA8875_DCR_LINESQUTRI_START | RA8875_DCR_FILL | RA8875_DCR_DRAWSQUARE);
-}
- */
-/**************************************************************************/
-/*!
-      Basic pixel write
-	  Parameters:
-	  x:horizontal pos
-	  y:vertical pos
-	  color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawPixel(int16_t x, int16_t y, uint16_t color){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	//checkLimitsHelper(x,y);
-	setXY(x,y);
-	writeCommand(RA8875_MRWC);
-	writeData16(color); 
-}
-
-/**************************************************************************/
-/*!
-      Basic line draw
-	  Parameters:
-	  x0:horizontal start pos
-	  y0:vertical start
-	  x1:horizontal end pos
-	  y1:vertical end pos
-	  color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	checkLimitsHelper(x0,y0);
-	if (x1 >= _width) x1 = _width-1;
-	if (y1 >= _height) y1 = _height-1;
-	
-	lineAddressing(x0,y0,x1,y1);
-	
-	setForegroundColor(color);
-	
-	writeReg(RA8875_DCR,0x80);
-	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
-}
-
-/**************************************************************************/
-/*!
-      for compatibility with popular Adafruit_GFX
-	  draws a single vertical line
-	  Parameters:
-	  x:horizontal start
-	  y:vertical start
-	  h:height
-	  color: RGB565 color
-*/
-/**************************************************************************/
-//Fixed! Now h=10 it's 10 pixels (before 11)
-void RA8875::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color){
-	if (h < 1) h = 1;
-	//drawLine(x, y, x, y+h, color);
-	uint16_t nH = (y+h)-1;
-	if (nH < 2){ //draw a pixel!
-		drawPixel(x,y,color);
+void RA8875::BTE_dataMode(enum RA8875btedatam m) 
+{	
+	uint8_t temp = readReg(RA8875_BECR0);
+	if (m != CONT){//rect
+		bitClear(temp,6);
 	} else {
-		drawLine(x, y, x, nH, color);
+		bitSet(temp,6);
 	}
+	writeReg(RA8875_BECR0,temp);  
 }
 
-/**************************************************************************/
-/*!
-      for compatibility with popular Adafruit_GFX
-	  draws a single orizontal line
-	  Parameters:
-	  x:horizontal start
-	  y:vertical start
-	  w:width
-	  color: RGB565 color
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								LAYER STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
-/**************************************************************************/
-//Fixed! Now w=10 it's 10 pixels (before 11)
-void RA8875::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color){
-	if (w < 1) w = 1;
-	//drawLine(x, y, x+w, y, color);
-	uint16_t nW = (x+w)-1;
-	if (nW < 2) {//draw a pixel!
-		drawPixel(x,y,color);
-	} else {
-		drawLine(x, y, nW, y, color);
-	}
-}
 
-/**************************************************************************/
-/*!
-	  draws a rectangle
-	  Parameters:
-	  x:horizontal start
-	  y:vertical start
-	  w: width
-	  h:height
-	  color: RGB565 color
-*/
-/**************************************************************************/
-//Fixed! now a 10x10 rect it's really 10x10 pixel!
-void RA8875::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color){
-	if (w < 1 || h < 1) return;//it cannot be!
-	//RA8875 it's not out-of-range tolerant so this is a workaround
-	
-	if (w < 2 && h < 2){ //render as pixel
-		drawPixel(x,y,color);
-	} else {			 //render as rect
-		rectHelper(x,y,(x+w)-1,(y+h)-1,color,false);//thanks the experimentalist
-	}
-	
-	//rectHelper(x,y,(x+w)-1,(y+h)-1,color,false);//thanks the experimentalist
-}
-
-/**************************************************************************/
-/*!
-	  draws a FILLED rectangle
-	  Parameters:
-	  x:horizontal start
-	  y:vertical start
-	  w: width
-	  h:height
-	  color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color){
-	//RA8875 it's not out-of-range tolerant so this is a workaround
-	if (w < 2 && h < 2){ //render as pixel
-		drawPixel(x,y,color);
-	} else {			 //render as rect
-		rectHelper(x,y,(x+w)-1,(y+h)-1,color,true);//thanks the experimentalist
-	}
-	//rectHelper(x,y,(x+w)-1,(y+h)-1,color,true);//thanks the experimentalist
-}
-
-/**************************************************************************/
-/*!
-      Fill the screen by using a specified RGB565 color
-	  Parameters:
-	  color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillScreen(uint16_t color){  
-	lineAddressing(0,0,_width-1, _height-1);
-	setForegroundColor(color);
-	writeCommand(RA8875_DCR);
-	writeData(0xB0);
-	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
-}
-
-//legacy
-void RA8875::clearScreen(uint16_t color){  
-	fillScreen(color);
-}
-
-/**************************************************************************/
-/*!
-      Draw circle
-	  Parameters:
-      x0:The 0-based x location of the center of the circle
-      y0:The 0-based y location of the center of the circle
-      r:radius
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color){
-	if (r <= 0) return;
-	circleHelper(x0, y0, r, color, false);
-}
-
-/**************************************************************************/
-/*!
-      Draw filled circle
-	  Parameters:
-      x0:The 0-based x location of the center of the circle
-      y0:The 0-based y location of the center of the circle
-      r:radius
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color){
-	if (r <= 0) return;
-	circleHelper(x0, y0, r, color, true);
-}
-
-/**************************************************************************/
-/*!
-      Draw Triangle
-	  Parameters:
-      x0:The 0-based x location of the point 0 of the triangle bottom LEFT
-      y0:The 0-based y location of the point 0 of the triangle bottom LEFT
-      x1:The 0-based x location of the point 1 of the triangle middle TOP
-      y1:The 0-based y location of the point 1 of the triangle middle TOP
-      x2:The 0-based x location of the point 2 of the triangle bottom RIGHT
-      y2:The 0-based y location of the point 2 of the triangle bottom RIGHT
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color){
-	triangleHelper(x0, y0, x1, y1, x2, y2, color, false);
-	//triangleHelper(x0, y0-1, x1-1, y1, x2-1, y2-1, color, false);
-}
-
-/**************************************************************************/
-/*!
-      Draw filled Triangle
-	  Parameters:
-      x0:The 0-based x location of the point 0 of the triangle
-      y0:The 0-based y location of the point 0 of the triangle
-      x1:The 0-based x location of the point 1 of the triangle
-      y1:The 0-based y location of the point 1 of the triangle
-      x2:The 0-based x location of the point 2 of the triangle
-      y2:The 0-based y location of the point 2 of the triangle
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color){
-	triangleHelper(x0, y0, x1, y1, x2, y2, color, true);
-	//triangleHelper(x0, y0-1, x1-1, y1, x2-1, y2-1, color, true);
-}
-
-/**************************************************************************/
-/*!
-      Draw an ellipse
-	  Parameters:
-      xCenter:   x location of the center of the ellipse
-      yCenter:   y location of the center of the ellipse
-      longAxis:  Size in pixels of the long axis
-      shortAxis: Size in pixels of the short axis
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color){
-	ellipseHelper(xCenter, yCenter, longAxis, shortAxis, color, false);
-	//TODO: correct dimensions?
-}
-
-/**************************************************************************/
-/*!
-      Draw a filled ellipse
-	  Parameters:
-      xCenter:   x location of the center of the ellipse
-      yCenter:   y location of the center of the ellipse
-      longAxis:  Size in pixels of the long axis
-      shortAxis: Size in pixels of the short axis
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color){
-	ellipseHelper(xCenter, yCenter, longAxis, shortAxis, color, true);
-	//TODO: correct dimensions?
-}
-
-/**************************************************************************/
-/*!
-      Draw a curve
-      Parameters:
-      xCenter:]   x location of the ellipse center
-      yCenter:   y location of the ellipse center
-      longAxis:  Size in pixels of the long axis
-      shortAxis: Size in pixels of the short axis
-      curvePart: Curve to draw in clock-wise dir: 0[180-270°],1[270-0°],2[0-90°],3[90-180°]
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawCurve(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint8_t curvePart, uint16_t color){
-	curveHelper(xCenter, yCenter, longAxis, shortAxis, curvePart, color, false);
-	//TODO: correct dimensions?
-}
-
-/**************************************************************************/
-/*!
-      Draw a filled curve
-      Parameters:
-      xCenter:]   x location of the ellipse center
-      yCenter:   y location of the ellipse center
-      longAxis:  Size in pixels of the long axis
-      shortAxis: Size in pixels of the short axis
-      curvePart: Curve to draw in clock-wise dir: 0[180-270°],1[270-0°],2[0-90°],3[90-180°]
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillCurve(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint8_t curvePart, uint16_t color){
-	curveHelper(xCenter, yCenter, longAxis, shortAxis, curvePart, color, true);
-	//TODO: correct dimensions?
-}
-
-/**************************************************************************/
-/*!
-      Draw a rounded rectangle
-	  Parameters:
-      x:   x location of the rectangle
-      y:   y location of the rectangle
-      w:  the width in pix
-      h:  the height in pix
-	  r:  the radius of the rounded corner
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::drawRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color){
-	if (w < 1 || h < 1) return;//it cannot be!
-	//RA8875 it's not out-of-range tolerant so this is a workaround
-	if (w < 2 && h < 2){ //render as pixel
-		drawPixel(x,y,color);
-	} else {			 //render as rect
-		roundRectHelper(x, y, (x+w)-1, (y+h)-1, r, color, false);
-	}
-}
-
-
-/**************************************************************************/
-/*!
-      Draw a filled rounded rectangle
-	  Parameters:
-      x:   x location of the rectangle
-      y:   y location of the rectangle
-      w:  the width in pix
-      h:  the height in pix
-	  r:  the radius of the rounded corner
-      color: RGB565 color
-*/
-/**************************************************************************/
-void RA8875::fillRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color){
-	//roundRectHelper(x, y, x+w, y+h, r, color, true);
-	//RA8875 it's not out-of-range tolerant so this is a workaround
-	if (w < 2 && h < 2){ //render as pixel
-		drawPixel(x,y,color);
-	} else {			 //render as rect
-		roundRectHelper(x, y, (x+w)-1, (y+h)-1, r, color, true);
-	}
-}
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//				Helpers functions
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-/**************************************************************************/
-/*!
-      helper function for circles
-*/
-/**************************************************************************/
-void RA8875::circleHelper(int16_t x0, int16_t y0, int16_t r, uint16_t color, bool filled){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	checkLimitsHelper(x0,y0);
-	if (r < 1) r = 1;
-	writeReg(RA8875_DCHR0,x0);
-	writeReg(RA8875_DCHR1,x0 >> 8);
-
-	writeReg(RA8875_DCVR0,y0);
-	writeReg(RA8875_DCVR1,y0 >> 8);	   
-
-	writeReg(RA8875_DCRR,r); 
-	
-	setForegroundColor(color);
-
-	writeCommand(RA8875_DCR);
-	filled == true ? writeData(RA8875_DCR_CIRCLE_START | RA8875_DCR_FILL) : writeData(RA8875_DCR_CIRCLE_START | RA8875_DCR_NOFILL);
-	waitPoll(RA8875_DCR, RA8875_DCR_CIRCLE_STATUS);//ZzZzz
-}
-
-/**************************************************************************/
-/*!
-		helper function for rects (filled or not)
-*/
-/**************************************************************************/
-void RA8875::rectHelper(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, bool filled){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	checkLimitsHelper(x,y);
-	if (w < 1) w = 1;
-	if (h < 1) h = 1;
-	
-	//if (w < 2 && h < 2) {//1 pixel, cannot draw a rect, draw Pixel instead
-	//	drawPixel(x,y,color);
-	//} else {//safe to draw a rect
-		lineAddressing(x,y,w,h);
-	
-		setForegroundColor(color);
-
-		writeCommand(RA8875_DCR);
-		filled == true ? writeData(0xB0) : writeData(0x90);
-		waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
-	//}
-}
-
-
-/**************************************************************************/
-/*!
-		common helper for check value limiter
-*/
-/**************************************************************************/
-void RA8875::checkLimitsHelper(int16_t &x,int16_t &y){
-	if (x < 0) x = 0;
-	if (y < 0) y = 0;
-	if (x >= _width) x = _width - 1;//479
-	if (y >= _height) y = _height -1;//271
-	x = x;
-	y = y;
-}
-/**************************************************************************/
-/*!
-      helper function for triangles
-*/
-/**************************************************************************/
-void RA8875::triangleHelper(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color, bool filled){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	checkLimitsHelper(x0,y0);
-	checkLimitsHelper(x1,y1);
-	checkLimitsHelper(x2,y2);
-	
-	lineAddressing(x0,y0,x1,y1);
-	//p2
-
-	writeReg(RA8875_DTPH0,x2);
-	writeReg(RA8875_DTPH1,x2 >> 8);
-	writeReg(RA8875_DTPV0,y2);
-	writeReg(RA8875_DTPV1,y2 >> 8);
-
-	setForegroundColor(color);
-	
-	writeCommand(RA8875_DCR);
-	filled == true ? writeData(0xA1) : writeData(0x81);
-	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
-}
-
-/**************************************************************************/
-/*!
-      helper function for ellipse
-*/
-/**************************************************************************/
-void RA8875::ellipseHelper(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color, bool filled){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	//TODO:limits!
-	curveAddressing(xCenter,yCenter,longAxis,shortAxis);
-	
-	setForegroundColor(color);
-
-	writeCommand(RA8875_ELLIPSE);
-	filled == true ? writeData(0xC0) : writeData(0x80);
-	waitPoll(RA8875_ELLIPSE, RA8875_ELLIPSE_STATUS);
-}
-
-/**************************************************************************/
-/*!
-      helper function for curve
-*/
-/**************************************************************************/
-void RA8875::curveHelper(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint8_t curvePart, uint16_t color, bool filled){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	//TODO:limits!
-	curveAddressing(xCenter,yCenter,longAxis,shortAxis);
-	
-	setForegroundColor(color);
-
-	writeCommand(RA8875_ELLIPSE);
-	filled == true ? writeData(0xD0 | (curvePart & 0x03)) : writeData(0x90 | (curvePart & 0x03));
-	waitPoll(RA8875_ELLIPSE, RA8875_ELLIPSE_STATUS);
-}
-
-/**************************************************************************/
-/*!
-	  helper function for rounded Rects
-*/
-/**************************************************************************/
-void RA8875::roundRectHelper(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color, bool filled){
-	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
-	checkLimitsHelper(x,y);
-	checkLimitsHelper(w,h);
-	if (r < 1 || (w <= (2*r)) || (h <= (2*r))) {
-		if (w < 2 && h < 2) {//1 pixel, cannot draw a rect, draw Pixel instead
-			drawPixel(x,y,color);
-		} else {
-			rectHelper(x,y,w,h,color,filled);//it's classical rec
-		}
-	} else {
-		lineAddressing(x,y,w,h);
-
-		writeReg(RA8875_ELL_A0,r);
-		writeReg(RA8875_ELL_A1,r >> 8);
-		writeReg(RA8875_ELL_B0,r);
-		writeReg(RA8875_ELL_B1,r >> 8);
-
-		setForegroundColor(color);
-
-		writeCommand(RA8875_ELLIPSE);
-		filled == true ? writeData(0xE0) : writeData(0xA0);
-		waitPoll(RA8875_ELLIPSE, RA8875_DCR_LINESQUTRI_STATUS);
-	}
-}
-
-/**************************************************************************/
-/*!
-		Graphic line addressing helper
-*/
-/**************************************************************************/
-void RA8875::lineAddressing(int16_t x0, int16_t y0, int16_t x1, int16_t y1){
-
-	//X0
-	writeReg(RA8875_DLHSR0,x0);
-	writeReg(RA8875_DLHSR1,x0 >> 8);
-	//Y0
-	writeReg(RA8875_DLVSR0,y0);
-	writeReg(RA8875_DLVSR1,y0 >> 8);
-	//X1
-	writeReg(RA8875_DLHER0,x1);
-	writeReg(RA8875_DLHER1,(x1) >> 8);
-	//Y1
-	writeReg(RA8875_DLVER0,y1);
-	writeReg(RA8875_DLVER1,(y1) >> 8);
-
-}
-
-/**************************************************************************/
-/*!	
-		curve addressing
-*/
-/**************************************************************************/
-void RA8875::curveAddressing(int16_t x0, int16_t y0, int16_t x1, int16_t y1){
-
-	//center
-	writeReg(RA8875_DEHR0,x0);
-	writeReg(RA8875_DEHR1,x0 >> 8);
-	writeReg(RA8875_DEVR0,y0);
-	writeReg(RA8875_DEVR1,y0 >> 8);
-	//long,short ax
-	writeReg(RA8875_ELL_A0,x1);
-	writeReg(RA8875_ELL_A1,x1 >> 8);
-	writeReg(RA8875_ELL_B0,y1);
-	writeReg(RA8875_ELL_B1,y1 >> 8);
-
-}
-
-/************************* Mid Level ***********************************/
-
-/**************************************************************************/
-/*!
-		on/off GPIO (basic for Adafruit module
-*/
-/**************************************************************************/
-void RA8875::GPIOX(boolean on) {
-    writeReg(RA8875_GPIOX, on);
-}
-
-/**************************************************************************/
-/*!
-		PWM out
-		Parameters:
-		pw:pwm selection (1,2)
-		p:0...255 rate
-*/
-/**************************************************************************/
-void RA8875::PWMout(uint8_t pw,uint8_t p) {
-	uint8_t reg;
-	if (pw > 1){
-		reg = RA8875_P2DCR;
-	} else {
-		reg = RA8875_P1DCR;
-	}
-	 writeReg(reg, p);
-}
-
-/**************************************************************************/
-/*!
-		Set the brightness of the backlight (if connected to pwm)
-		(basic controls pwm 1)
-		Parameters:
-		val:0...255
-*/
-/**************************************************************************/
-void RA8875::brightness(uint8_t val) {
-	PWMout(1,val);
-}
-
-/**************************************************************************/
-/*! PRIVATE
-		Setup PWM engine
-		Parameters:
-		pw:pwm selection (1,2)
-		on: turn on/off
-		clock: the clock setting
-*/
-/**************************************************************************/
-void RA8875::PWMsetup(uint8_t pw,boolean on, uint8_t clock) {
-	uint8_t reg;
-	uint8_t set;
-	if (pw > 1){
-		reg = RA8875_P2CR;
-		if (on){
-			set = RA8875_PxCR_ENABLE;
-		} else {
-			set = RA8875_PxCR_DISABLE;
-		}
-	} else {
-		reg = RA8875_P1CR;
-		if (on){
-			set = RA8875_PxCR_ENABLE;
-		} else {
-			set = RA8875_PxCR_DISABLE;
-		}
-	}
-	writeReg(reg,(set | (clock & 0xF)));
-}
-
-#if !defined(USE_EXTERNALTOUCH)
-
-/**************************************************************************/
-/*!   Initialize support for on-chip resistive Touch Screen controller
-	  It also enable the Touch Screen
-	  Parameters:
-	  intPin:pin connected to RA8875 INT
-*/
-/**************************************************************************/
-void RA8875::touchBegin(uint8_t intPin) {
-	_touchPin = intPin;
-	pinMode(_touchPin, INPUT);
-	digitalWrite(_touchPin, HIGH);
-	//auto mode + debounce on
-	writeReg(RA8875_TPCR1, RA8875_TPCR1_AUTO | RA8875_TPCR1_DEBOUNCE);
-	touchEnable(true);
-}
-
-/**************************************************************************/
-/*! 
-      Enables or disables the on-chip touch screen controller
-	  Parameters:
-	  enabled:true(enable),false(disable)
-*/
-/**************************************************************************/
-void RA8875::touchEnable(boolean enabled) {
-	if (_touchPin < 255){
-		if (!_touchEnabled && enabled) {
-			_INTC1Reg |= (1 << 2); //bit set 2
-			writeReg(RA8875_INTC1, _INTC1Reg);
-			_TPCR0Reg |= (1 << 7); //bit set 7
-			writeReg(RA8875_TPCR0, _TPCR0Reg);
-			_touchEnabled = true;
-		} else if (_touchEnabled && !enabled) {
-			_INTC1Reg &= ~(1 << 2); //clear bit 2
-			writeReg(RA8875_INTC1, _INTC1Reg);
-			_TPCR0Reg &= ~(1 << 7); //clear bit 7
-			writeReg(RA8875_TPCR0, _TPCR0Reg);
-			_touchEnabled = false;
-		}
-	} 
-}
-
-/**************************************************************************/
-/*!   Detect a touch and return true, otherwise false.
-	  It also correctly resets INT register to avoid false detections.
-	  Will not work at all (return false) if touchBegin/touchEnable not set.
-	  Using autoclear=true: 
-	  This is useful to detect any press without get coordinates!
-	  Note that if you are not using autoclear you will need a readTouchADC or readTouchPixel
-	  just after touchDetect or the INT register will not clear and you will get a loopback!
-	  In contrast, using autoclear and readTouchADC/readTouchPixel will result in wrong readings.
-	  Parameters:
-	  Autoclear:(true/false) set true when you want to use this function standalone and
-	  not followed by a coordinate reading with readTouchADC/readTouchPixel
-*/
-/**************************************************************************/
-boolean RA8875::touchDetect(boolean autoclear) {
-	if (_touchEnabled){
-		if (!digitalRead(_touchPin)) {
-			_clearTInt = true;
-			if (touched()){
-				if (autoclear) clearTouchInt();
-				return true;
-			} else {
-				return false;
-			}
-		}
-		if (_clearTInt){
-			_clearTInt = false;
-			clearTouchInt();
-			delay(1);
-		}
-		return false;
-	} else {
-		return false;
-	}
-}
-
-
-/**************************************************************************/
-/*! (from adafruit)
-      Checks if a touch event has occured
-      
-      @returns  True is a touch event has occured (reading it via
-                touchRead() will clear the interrupt in memory)
-*/
-/**************************************************************************/
-boolean RA8875::touched(void) {
-	if (readReg(RA8875_INTC2) & RA8875_INTCx_TP) return true;
-	return false;
-}
-
-/**************************************************************************/
-/*!   Read 10bit internal ADC of RA8875 registers and perform corrections
-	  It will return always RAW data
-	  Parameters:
-	  x:out 0...1024
-	  Y:out 0...1024
-	  Modified 14/4/15 M Sandercock: remove range checking and inversions
-	  
-	  [private]
-*/
-/**************************************************************************/
-void RA8875::readTouchADC(uint16_t *x, uint16_t *y) {
-	uint16_t tx =  readReg(RA8875_TPXH);
-	uint16_t ty =  readReg(RA8875_TPYH);
-	uint8_t temp = readReg(RA8875_TPXYL);
-	tx <<= 2;
-	ty <<= 2;
-	tx |= temp & 0x03;        // get the bottom x bits from temp
-	ty |= (temp >> 2) & 0x03; // get the bottom y bits from temp
-	//Note: removed inversion and range checking here - do it inside readTouchPixel()
-    *x = tx;
-	*y = ty;
-	Serial.print('R');
-	Serial.print(tx);
-	Serial.print(',');
-	Serial.println(ty);
-}
-
-/**************************************************************************/
-/*!   Returns 10bit x,y data with TRUE scale (0...1024)
-	  Parameters:
-	  x:out 0...1024
-	  Y:out 0...1024
-	  Odd that this is called 'Raw' when it applies the calibrations.
-*/
-/**************************************************************************/
-void RA8875::touchReadRaw(uint16_t *x, uint16_t *y) {
-	uint16_t tx,ty;
-	readTouchADC(&tx,&ty);
-	#if (defined(TOUCSRCAL_XLOW) && (TOUCSRCAL_XLOW != 0)) || (defined(TOUCSRCAL_XHIGH) && (TOUCSRCAL_XHIGH != 0))
-		*x = map(tx,_tsAdcMinX,_tsAdcMaxX,0,1024);
-	#else
-		*x = tx;
-	#endif
-	#if (defined(TOUCSRCAL_YLOW) && (TOUCSRCAL_YLOW != 0)) || (defined(TOUCSRCAL_YHIGH) && (TOUCSRCAL_YHIGH != 0))
-		*y = map(ty,_tsAdcMinY,_tsAdcMaxY,0,1024);
-	#else
-		*y = ty;
-	#endif
-	clearTouchInt();
-}
-
-/**************************************************************************/
-/*!   Returns pixel x,y data with SCREEN scale (screen width, screen Height)
-	  Parameters:
-	  x:out 0...screen width  (pixels)
-	  Y:out 0...screen Height (pixels)
-	  Check for out-of-bounds here as touches near the edge of the screen
-	  can be safely mapped to the nearest point of the screen.
-	  If the screen is rotated, then the min and max will be modified elsewhere
-	  so that this always corresponds to screen pixel coordinates.
-*/
-/**************************************************************************/
-void RA8875::touchReadPixel(uint16_t *x, uint16_t *y) {
-	uint16_t tx,ty;
-	Serial.print("Y cal=");Serial.print(_tsAdcMinY);Serial.print("-");Serial.print(_tsAdcMaxY); Serial.print("  ");
-	readTouchADC(&tx,&ty);
-	*x = constrain(map(tx,_tsAdcMinX,_tsAdcMaxX,0,_width-1),0,_width-1);
-	*y = constrain(map(ty,_tsAdcMinY,_tsAdcMaxY,0,_height-1),0,_height-1);
-	clearTouchInt();
-}
-
-/**************************************************************************/
-/*!   A service utility that detects if system has been calibrated in the past
-	  Return true if an old calibration exists
-*/
-/**************************************************************************/
-boolean RA8875::touchCalibrated(void) {
-	uint8_t uncaltetection = 4;
-	#if defined(TOUCSRCAL_XLOW) && (TOUCSRCAL_XLOW != 0)
-		uncaltetection--;
-	#endif
-	#if defined(TOUCSRCAL_YLOW) && (TOUCSRCAL_YLOW != 0)
-		uncaltetection--;
-	#endif
-	#if defined(TOUCSRCAL_XHIGH) && (TOUCSRCAL_XHIGH != 0)
-		uncaltetection--;
-	#endif
-	#if defined(TOUCSRCAL_YHIGH) && (TOUCSRCAL_YHIGH != 0)
-		uncaltetection--;
-	#endif
-	if (uncaltetection < 1) return true;
-	return false;
-}
-
-/**************************************************************************/
-/*!   helper
-*/
-/**************************************************************************/
-void RA8875::clearTouchInt(void) {
-	writeReg(RA8875_INTC2, RA8875_INTCx_TP);
-}
-
-
-#endif
 /**************************************************************************/
 /*!
 		Instruct the RA8875 chip to use 2 layers
@@ -2382,7 +1988,8 @@ void RA8875::clearTouchInt(void) {
       
 */
 /**************************************************************************/
-void RA8875::useLayers(boolean on) {
+void RA8875::useLayers(boolean on) 
+{
 	if (_useMultiLayers == on) return; //no reason to do change that it's already as desidered.
 	bool clearBuffer = false;
 	if (_hasLayerLimits && _color_bpp > 8) { //try to set up 8bit color space
@@ -2413,7 +2020,8 @@ void RA8875::useLayers(boolean on) {
       
 */
 /**************************************************************************/
-void RA8875::layerEffect(enum RA8875boolean efx){
+void RA8875::layerEffect(enum RA8875boolean efx)
+{
 	uint8_t	reg = 0b00000000;
 	//reg &= ~(0x07);//clear bit 2,1,0
 	if (!_useMultiLayers) useLayers(true);//turn on multiple layers if it's off
@@ -2452,13 +2060,16 @@ void RA8875::layerEffect(enum RA8875boolean efx){
       
 */
 /**************************************************************************/
-void RA8875::layerTransparency(uint8_t layer1,uint8_t layer2){
+void RA8875::layerTransparency(uint8_t layer1,uint8_t layer2)
+{
 	if (layer1 > 8) layer1 = 8;
 	if (layer2 > 8) layer2 = 8;
 	if (!_useMultiLayers) useLayers(true);//turn on multiple layers if it's off
 	//if (_useMultiLayers) writeReg(RA8875_LTPR1, ((layer2 & 0x0F) << 4) | (layer1 & 0x0F));
-	uint8_t res = 0b00000000;//RA8875_LTPR1
+	//uint8_t res = 0b00000000;//RA8875_LTPR1
 	//reg &= ~(0x07);//clear bit 2,1,0
+	writeReg(RA8875_LTPR1, ((layer2 & 0xF) << 4) | (layer1 & 0xF));
+	/*
 	switch (layer1){
 		case 0: //disable layer
 			res |= (1 << 3);
@@ -2512,24 +2123,1095 @@ void RA8875::layerTransparency(uint8_t layer1,uint8_t layer2){
 			res |= (1 << 4);
 		break;
 	}
-	writeReg(RA8875_LTPR1,res);
+	*/
+	//writeReg(RA8875_LTPR1,res);
+}
 
+
+/**************************************************************************/
+/*! return the current drawing layer. If layers are OFF, return 255
+
+*/
+/**************************************************************************/
+uint8_t RA8875::getCurrentLayer(void)
+{
+	if (!_useMultiLayers) return 255;
+	return _currentLayer;
+}
+
+/**************************************************************************/
+/*! select pattern
+
+*/
+/**************************************************************************/
+void RA8875::setPattern(uint8_t num, enum RA8875pattern p)
+{
+	uint8_t maxLoc;
+	uint8_t temp = 0b00000000;
+	if (p != P16X16) {
+		maxLoc = 16;//at 8x8 max 16 locations
+	} else {
+		maxLoc = 4;//at 16x16 max 4 locations
+		bitSet(temp,7);
+	}
+	if (num > (maxLoc - 1)) num = maxLoc - 1;
+	temp = temp | num;
+	writeTo(PATTERN);
+	writeReg(RA8875_PTNO,temp);
+}
+
+/**************************************************************************/
+/*! This is the most important function to write on:
+	LAYERS
+	CGRAM
+	PATTERN
+	CURSOR
+	Parameter:
+	d (L1, L2, CGRAM, PATTERN, CURSOR)
+	When writing on layers 0 or 1, if the layers are not enable it will enable automatically
+	If the display doesn't support layers, it will automatically switch to 8bit color
+	Remember that when layers are ON you need to disable manually, once that only Layer 1 will be visible
+
+*/
+/**************************************************************************/
+void RA8875::writeTo(enum RA8875writes d)
+{
+	uint8_t temp = readReg(RA8875_MWCR1);
+	bool trigMultilayer = false;
+	switch(d){
+		case L1:
+			temp &= ~((1<<3) | (1<<2));// Clear bits 3 and 2
+			temp &= ~(1 << 0); //clear bit 0
+			_currentLayer = 0;
+			trigMultilayer = true;
+		break;
+		case L2:
+			temp &= ~((1<<3) | (1<<2));// Clear bits 3 and 2
+			temp |= (1 << 0); //bit set 0
+			_currentLayer = 1;
+			trigMultilayer = true;
+		break;
+		case CGRAM: 
+			temp &= ~(1 << 3); //clear bit 3
+			temp |= (1 << 2); //bit set 2
+			if (bitRead(_FNCR0Reg,7)){//REG[0x21] bit7 must be 0
+				_FNCR0Reg &= ~(1 << 7); //clear bit 7
+				writeReg(RA8875_FNCR0,_FNCR0Reg);  
+			}
+		break;
+		case PATTERN:
+			temp |= (1 << 3); //bit set 3
+			temp |= (1 << 2); //bit set 2
+		break;
+		case CURSOR:
+			temp |= (1 << 3); //bit set 3
+			temp &= ~(1 << 2); //clear bit 2
+		break;
+		default:
+		break;
+	}
+	if (trigMultilayer && !_useMultiLayers) useLayers(true);//turn on multiple layers if it's off
+	writeReg(RA8875_MWCR1,temp);  
+}
+
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++						GEOMETRIC PRIMITIVE  STUFF									 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+/**************************************************************************/
+/*!
+
+*/
+/**************************************************************************/
+/* void RA8875::fillRect(void) {
+	writeCommand(RA8875_DCR);
+	writeData(RA8875_DCR_LINESQUTRI_STOP | RA8875_DCR_DRAWSQUARE);
+	writeData(RA8875_DCR_LINESQUTRI_START | RA8875_DCR_FILL | RA8875_DCR_DRAWSQUARE);
+}
+ */
+/**************************************************************************/
+/*!
+      Basic pixel write
+	  Parameters:
+	  x:horizontal pos
+	  y:vertical pos
+	  color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::drawPixel(int16_t x, int16_t y, uint16_t color)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	//checkLimitsHelper(x,y);
+	setXY(x,y);
+	writeCommand(RA8875_MRWC);
+	writeData16(color); 
 }
 
 /**************************************************************************/
 /*!
-      Change the beam scan direction on display
+      Basic line draw
 	  Parameters:
-	  invertH:true(inverted),false(normal) horizontal
-	  invertV:true(inverted),false(normal) vertical
+	  x0:horizontal start pos
+	  y0:vertical start
+	  x1:horizontal end pos
+	  y1:vertical end pos
+	  color: RGB565 color
 */
 /**************************************************************************/
-void RA8875::scanDirection(boolean invertH,boolean invertV){
-	invertH == true ? _DPCRReg |= (1 << 3) : _DPCRReg &= ~(1 << 3);
-	invertV == true ? _DPCRReg |= (1 << 2) : _DPCRReg &= ~(1 << 2);
-	writeReg(RA8875_DPCR,_DPCRReg);
+void RA8875::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	checkLimitsHelper(x0,y0);
+	if (x1 >= _width) x1 = _width-1;
+	if (y1 >= _height) y1 = _height-1;
+	
+	lineAddressing(x0,y0,x1,y1);
+	
+	setForegroundColor(color);
+	
+	writeReg(RA8875_DCR,0x80);
+	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
 }
 
+/**************************************************************************/
+/*!
+      for compatibility with popular Adafruit_GFX
+	  draws a single vertical line
+	  Parameters:
+	  x:horizontal start
+	  y:vertical start
+	  h:height
+	  color: RGB565 color
+*/
+/**************************************************************************/
+//Fixed! Now h=10 it's 10 pixels (before 11)
+void RA8875::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color)
+{
+	if (h < 1) h = 1;
+	//drawLine(x, y, x, y+h, color);
+	uint16_t nH = (y+h)-1;
+	if (nH < 2){ //draw a pixel!
+		drawPixel(x,y,color);
+	} else {
+		drawLine(x, y, x, nH, color);
+	}
+}
+
+/**************************************************************************/
+/*!
+      for compatibility with popular Adafruit_GFX
+	  draws a single orizontal line
+	  Parameters:
+	  x:horizontal start
+	  y:vertical start
+	  w:width
+	  color: RGB565 color
+*/
+/**************************************************************************/
+//Fixed! Now w=10 it's 10 pixels (before 11)
+void RA8875::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color)
+{
+	if (w < 1) w = 1;
+	//drawLine(x, y, x+w, y, color);
+	uint16_t nW = (x+w)-1;
+	if (nW < 2) {//draw a pixel!
+		drawPixel(x,y,color);
+	} else {
+		drawLine(x, y, nW, y, color);
+	}
+}
+
+/**************************************************************************/
+/*!
+	  draws a rectangle
+	  Parameters:
+	  x:horizontal start
+	  y:vertical start
+	  w: width
+	  h:height
+	  color: RGB565 color
+*/
+/**************************************************************************/
+//Fixed! now a 10x10 rect it's really 10x10 pixel!
+void RA8875::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
+{
+	if (w < 1 || h < 1) return;//it cannot be!
+	//RA8875 it's not out-of-range tolerant so this is a workaround
+	if (w < 2 && h < 2){ //render as pixel
+		drawPixel(x,y,color);
+	} else {			 //render as rect
+		rectHelper(x,y,(w+x)-1,(h+y)-1,color,false);//thanks the experimentalist
+	}
+}
+
+
+
+/**************************************************************************/
+/*!
+	  draws a FILLED rectangle
+	  Parameters:
+	  x:horizontal start
+	  y:vertical start
+	  w: width
+	  h:height
+	  color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
+{
+	//RA8875 it's not out-of-range tolerant so this is a workaround
+	if (w < 2 && h < 2){ //render as pixel
+		drawPixel(x,y,color);
+	} else {			 //render as rect
+		rectHelper(x,y,(x+w)-1,(y+h)-1,color,true);//thanks the experimentalist
+	}
+}
+
+
+
+/**************************************************************************/
+/*!
+      Fill the screen by using a specified RGB565 color
+	  Parameters:
+	  color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillScreen(uint16_t color)
+{  
+	lineAddressing(0,0,_width-1, _height-1);
+	setForegroundColor(color);
+	writeCommand(RA8875_DCR);
+	writeData(0xB0);
+	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
+}
+
+//legacy
+void RA8875::clearScreen(uint16_t color)
+{  
+	fillScreen(color);
+}
+
+/**************************************************************************/
+/*!
+      Draw circle
+	  Parameters:
+      x0:The 0-based x location of the center of the circle
+      y0:The 0-based y location of the center of the circle
+      r:radius
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
+{
+	if (r <= 0) return;
+	circleHelper(x0, y0, r, color, false);
+}
+
+/**************************************************************************/
+/*!
+      Draw filled circle
+	  Parameters:
+      x0:The 0-based x location of the center of the circle
+      y0:The 0-based y location of the center of the circle
+      r:radius
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
+{
+	if (r <= 0) return;
+	circleHelper(x0, y0, r, color, true);
+}
+
+/**************************************************************************/
+/*!
+      Draw Triangle
+	  Parameters:
+      x0:The 0-based x location of the point 0 of the triangle bottom LEFT
+      y0:The 0-based y location of the point 0 of the triangle bottom LEFT
+      x1:The 0-based x location of the point 1 of the triangle middle TOP
+      y1:The 0-based y location of the point 1 of the triangle middle TOP
+      x2:The 0-based x location of the point 2 of the triangle bottom RIGHT
+      y2:The 0-based y location of the point 2 of the triangle bottom RIGHT
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::drawTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color)
+{
+	triangleHelper(x0, y0, x1, y1, x2, y2, color, false);
+	//triangleHelper(x0, y0-1, x1-1, y1, x2-1, y2-1, color, false);
+}
+
+/**************************************************************************/
+/*!
+      Draw filled Triangle
+	  Parameters:
+      x0:The 0-based x location of the point 0 of the triangle
+      y0:The 0-based y location of the point 0 of the triangle
+      x1:The 0-based x location of the point 1 of the triangle
+      y1:The 0-based y location of the point 1 of the triangle
+      x2:The 0-based x location of the point 2 of the triangle
+      y2:The 0-based y location of the point 2 of the triangle
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color)
+{
+	triangleHelper(x0, y0, x1, y1, x2, y2, color, true);
+	//triangleHelper(x0, y0-1, x1-1, y1, x2-1, y2-1, color, true);
+}
+
+/**************************************************************************/
+/*!
+      Draw an ellipse
+	  Parameters:
+      xCenter:   x location of the center of the ellipse
+      yCenter:   y location of the center of the ellipse
+      longAxis:  Size in pixels of the long axis
+      shortAxis: Size in pixels of the short axis
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::drawEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color)
+{
+	ellipseHelper(xCenter, yCenter, longAxis, shortAxis, color, false);
+	//TODO: correct dimensions?
+}
+
+/**************************************************************************/
+/*!
+      Draw a filled ellipse
+	  Parameters:
+      xCenter:   x location of the center of the ellipse
+      yCenter:   y location of the center of the ellipse
+      longAxis:  Size in pixels of the long axis
+      shortAxis: Size in pixels of the short axis
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color)
+{
+	ellipseHelper(xCenter, yCenter, longAxis, shortAxis, color, true);
+	//TODO: correct dimensions?
+}
+
+/**************************************************************************/
+/*!
+      Draw a curve
+      Parameters:
+      xCenter:]   x location of the ellipse center
+      yCenter:   y location of the ellipse center
+      longAxis:  Size in pixels of the long axis
+      shortAxis: Size in pixels of the short axis
+      curvePart: Curve to draw in clock-wise dir: 0[180-270°],1[270-0°],2[0-90°],3[90-180°]
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::drawCurve(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint8_t curvePart, uint16_t color)
+{
+	curveHelper(xCenter, yCenter, longAxis, shortAxis, curvePart, color, false);
+	//TODO: correct dimensions?
+}
+
+/**************************************************************************/
+/*!
+      Draw a filled curve
+      Parameters:
+      xCenter:]   x location of the ellipse center
+      yCenter:   y location of the ellipse center
+      longAxis:  Size in pixels of the long axis
+      shortAxis: Size in pixels of the short axis
+      curvePart: Curve to draw in clock-wise dir: 0[180-270°],1[270-0°],2[0-90°],3[90-180°]
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillCurve(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint8_t curvePart, uint16_t color)
+{
+	curveHelper(xCenter, yCenter, longAxis, shortAxis, curvePart, color, true);
+	//TODO: correct dimensions?
+}
+
+/**************************************************************************/
+/*!
+      Draw a rounded rectangle
+	  Parameters:
+      x:   x location of the rectangle
+      y:   y location of the rectangle
+      w:  the width in pix
+      h:  the height in pix
+	  r:  the radius of the rounded corner
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::drawRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color)
+{
+	if (w < 1 || h < 1) return;//it cannot be!
+	//RA8875 it's not out-of-range tolerant so this is a workaround
+	if (w < 2 && h < 2){ //render as pixel
+		drawPixel(x,y,color);
+	} else {			 //render as rect
+		roundRectHelper(x, y, (x+w)-1, (y+h)-1, r, color, false);
+	}
+}
+
+
+/**************************************************************************/
+/*!
+      Draw a filled rounded rectangle
+	  Parameters:
+      x:   x location of the rectangle
+      y:   y location of the rectangle
+      w:  the width in pix
+      h:  the height in pix
+	  r:  the radius of the rounded corner
+      color: RGB565 color
+*/
+/**************************************************************************/
+void RA8875::fillRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color)
+{
+	//roundRectHelper(x, y, x+w, y+h, r, color, true);
+	//RA8875 it's not out-of-range tolerant so this is a workaround
+	if (w < 2 && h < 2){ //render as pixel
+		drawPixel(x,y,color);
+	} else {			 //render as rect
+		roundRectHelper(x, y, (x+w)-1, (y+h)-1, r, color, true);
+	}
+}
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++					GEOMETRIC PRIMITIVE HELPERS STUFF								 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+/**************************************************************************/
+/*!
+      helper function for circles
+*/
+/**************************************************************************/
+void RA8875::circleHelper(int16_t x0, int16_t y0, int16_t r, uint16_t color, bool filled)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	checkLimitsHelper(x0,y0);
+	if (r < 1) r = 1;
+	writeReg(RA8875_DCHR0,x0);
+	writeReg(RA8875_DCHR1,x0 >> 8);
+
+	writeReg(RA8875_DCVR0,y0);
+	writeReg(RA8875_DCVR1,y0 >> 8);	   
+
+	writeReg(RA8875_DCRR,r); 
+	
+	setForegroundColor(color);
+
+	writeCommand(RA8875_DCR);
+	filled == true ? writeData(RA8875_DCR_CIRCLE_START | RA8875_DCR_FILL) : writeData(RA8875_DCR_CIRCLE_START | RA8875_DCR_NOFILL);
+	waitPoll(RA8875_DCR, RA8875_DCR_CIRCLE_STATUS);//ZzZzz
+}
+
+/**************************************************************************/
+/*!
+		helper function for rects (filled or not)
+*/
+/**************************************************************************/
+void RA8875::rectHelper(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, bool filled)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	checkLimitsHelper(x,y);
+	if (w < 1) w = 1;
+	if (h < 1) h = 1;
+	
+	lineAddressing(x,y,w,h);
+	
+	setForegroundColor(color);
+
+	writeCommand(RA8875_DCR);
+	filled == true ? writeData(0xB0) : writeData(0x90);
+	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
+}
+
+
+
+/**************************************************************************/
+/*!
+		common helper for check value limiter
+*/
+/**************************************************************************/
+void RA8875::checkLimitsHelper(int16_t &x,int16_t &y)
+{
+	if (x < 0) x = 0;
+	if (y < 0) y = 0;
+	if (x >= _width) x = _width - 1;
+	if (y >= _height) y = _height -1;
+	x = x;
+	y = y;
+}
+/**************************************************************************/
+/*!
+      helper function for triangles
+*/
+/**************************************************************************/
+void RA8875::triangleHelper(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color, bool filled)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	checkLimitsHelper(x0,y0);
+	checkLimitsHelper(x1,y1);
+	checkLimitsHelper(x2,y2);
+	
+	lineAddressing(x0,y0,x1,y1);
+	//p2
+
+	writeReg(RA8875_DTPH0,x2);
+	writeReg(RA8875_DTPH1,x2 >> 8);
+	writeReg(RA8875_DTPV0,y2);
+	writeReg(RA8875_DTPV1,y2 >> 8);
+
+	setForegroundColor(color);
+	
+	writeCommand(RA8875_DCR);
+	filled == true ? writeData(0xA1) : writeData(0x81);
+	waitPoll(RA8875_DCR, RA8875_DCR_LINESQUTRI_STATUS);
+}
+
+/**************************************************************************/
+/*!
+      helper function for ellipse
+*/
+/**************************************************************************/
+void RA8875::ellipseHelper(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color, bool filled)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	//TODO:limits!
+	curveAddressing(xCenter,yCenter,longAxis,shortAxis);
+	
+	setForegroundColor(color);
+
+	writeCommand(RA8875_ELLIPSE);
+	filled == true ? writeData(0xC0) : writeData(0x80);
+	waitPoll(RA8875_ELLIPSE, RA8875_ELLIPSE_STATUS);
+}
+
+/**************************************************************************/
+/*!
+      helper function for curve
+*/
+/**************************************************************************/
+void RA8875::curveHelper(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint8_t curvePart, uint16_t color, bool filled)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	//TODO:limits!
+	curveAddressing(xCenter,yCenter,longAxis,shortAxis);
+	
+	setForegroundColor(color);
+
+	writeCommand(RA8875_ELLIPSE);
+	filled == true ? writeData(0xD0 | (curvePart & 0x03)) : writeData(0x90 | (curvePart & 0x03));
+	waitPoll(RA8875_ELLIPSE, RA8875_ELLIPSE_STATUS);
+}
+
+/**************************************************************************/
+/*!
+	  helper function for rounded Rects
+*/
+/**************************************************************************/
+void RA8875::roundRectHelper(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color, bool filled)
+{
+	if (_currentMode == TEXT) changeMode(GRAPHIC);//we are in text mode?
+	checkLimitsHelper(x,y);
+	checkLimitsHelper(w,h);
+	if (r < 1 || (w <= (2*r)) || (h <= (2*r))) {
+		if (w < 2 && h < 2) {//1 pixel, cannot draw a rect, draw Pixel instead
+			drawPixel(x,y,color);
+		} else {
+			rectHelper(x,y,w,h,color,filled);//it's classical rec
+		}
+	} else {
+		lineAddressing(x,y,w,h);
+
+		writeReg(RA8875_ELL_A0,r);
+		writeReg(RA8875_ELL_A1,r >> 8);
+		writeReg(RA8875_ELL_B0,r);
+		writeReg(RA8875_ELL_B1,r >> 8);
+
+		setForegroundColor(color);
+
+		writeCommand(RA8875_ELLIPSE);
+		filled == true ? writeData(0xE0) : writeData(0xA0);
+		waitPoll(RA8875_ELLIPSE, RA8875_DCR_LINESQUTRI_STATUS);
+	}
+}
+
+/**************************************************************************/
+/*!
+		Graphic line addressing helper
+*/
+/**************************************************************************/
+void RA8875::lineAddressing(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+{
+	//X0
+	writeReg(RA8875_DLHSR0,x0);
+	writeReg(RA8875_DLHSR1,x0 >> 8);
+	//Y0
+	writeReg(RA8875_DLVSR0,y0);
+	writeReg(RA8875_DLVSR1,y0 >> 8);
+	//X1
+	writeReg(RA8875_DLHER0,x1);
+	writeReg(RA8875_DLHER1,(x1) >> 8);
+	//Y1
+	writeReg(RA8875_DLVER0,y1);
+	writeReg(RA8875_DLVER1,(y1) >> 8);
+}
+
+/**************************************************************************/
+/*!	
+		curve addressing
+*/
+/**************************************************************************/
+void RA8875::curveAddressing(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+{
+	//center
+	writeReg(RA8875_DEHR0,x0);
+	writeReg(RA8875_DEHR1,x0 >> 8);
+	writeReg(RA8875_DEVR0,y0);
+	writeReg(RA8875_DEVR1,y0 >> 8);
+	//long,short ax
+	writeReg(RA8875_ELL_A0,x1);
+	writeReg(RA8875_ELL_A1,x1 >> 8);
+	writeReg(RA8875_ELL_B0,y1);
+	writeReg(RA8875_ELL_B1,y1 >> 8);
+}
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								PWM STUFF											 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+
+/**************************************************************************/
+/*!
+		on/off GPIO (basic for Adafruit module
+*/
+/**************************************************************************/
+void RA8875::GPIOX(boolean on) 
+{
+    writeReg(RA8875_GPIOX, on);
+}
+
+/**************************************************************************/
+/*!
+		PWM out
+		Parameters:
+		pw:pwm selection (1,2)
+		p:0...255 rate
+		NOTE:on non adafruit board PWM1 it's used by backlight!
+*/
+/**************************************************************************/
+void RA8875::PWMout(uint8_t pw,uint8_t p)
+{
+	uint8_t reg;
+	if (pw > 1){
+		reg = RA8875_P2DCR;
+	} else {
+		reg = RA8875_P1DCR;
+	}
+	 writeReg(reg, p);
+}
+
+/**************************************************************************/
+/*!
+		Set the brightness of the backlight (if connected to pwm)
+		(basic controls pwm 1)
+		Parameters:
+		val:0...255
+*/
+/**************************************************************************/
+void RA8875::brightness(uint8_t val) 
+{
+	_brightness = val;
+	PWMout(1,_brightness);
+}
+
+/**************************************************************************/
+/*!
+		controls the backligh by using PWM engine.
+		It handles adafruit board separately
+		Parameters:
+		on:true(backlight on), false(backlight off)
+*/
+/**************************************************************************/
+void RA8875::backlight(boolean on) 
+{
+	if (_size == Adafruit_480x272 || _size == Adafruit_800x480 || _size == Adafruit_640x480) {
+		GPIOX(on);
+	} else {
+		if (on == true){
+			PWMsetup(1,true, RA8875_PWM_CLK_DIV1024);//setup PWM ch 1 for backlight
+			PWMout(1,_brightness);//turn on PWM1
+		} else {
+			PWMsetup(1,false, RA8875_PWM_CLK_DIV1024);//setup PWM ch 1 for backlight
+		}
+	}
+}
+
+/**************************************************************************/
+/*!
+		Setup PWM engine
+		Parameters:
+		pw:pwm selection (1,2)
+		on: turn on/off
+		clock: the clock setting
+		[private]
+*/
+/**************************************************************************/
+void RA8875::PWMsetup(uint8_t pw,boolean on, uint8_t clock) 
+{
+	uint8_t reg;
+	uint8_t set;
+	if (pw > 1){
+		reg = RA8875_P2CR;
+		if (on){
+			set = RA8875_PxCR_ENABLE;
+		} else {
+			set = RA8875_PxCR_DISABLE;
+		}
+	} else {
+		reg = RA8875_P1CR;
+		if (on){
+			set = RA8875_PxCR_ENABLE;
+		} else {
+			set = RA8875_PxCR_DISABLE;
+		}
+	}
+	writeReg(reg,(set | (clock & 0xF)));
+}
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++						RESISTIVE TOUCH STUFF										 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+
+#if !defined(USE_EXTERNALTOUCH)//useless if you are using a capacitive TS
+
+/**************************************************************************/
+/*!   
+	  Initialize support for on-chip resistive Touch Screen controller
+	  It also enable the Touch Screen
+	  Parameters:
+	  intPin:pin connected to RA8875 INT
+*/
+/**************************************************************************/
+void RA8875::touchBegin(uint8_t intPin) 
+{
+	_touchPin = intPin;
+	pinMode(_touchPin, INPUT);
+	digitalWrite(_touchPin, HIGH);
+	//auto mode + debounce on
+	writeReg(RA8875_TPCR1, RA8875_TPCR1_AUTO | RA8875_TPCR1_DEBOUNCE);
+	touchEnable(true);
+}
+
+/**************************************************************************/
+/*! 
+      Enables or disables the on-chip touch screen controller
+	  Parameters:
+	  enabled:true(enable),false(disable)
+*/
+/**************************************************************************/
+void RA8875::touchEnable(boolean enabled) 
+{
+	if (_touchPin < 255){
+		if (!_touchEnabled && enabled) {
+			_INTC1Reg |= (1 << 2); //bit set 2
+			writeReg(RA8875_INTC1, _INTC1Reg);
+			_TPCR0Reg |= (1 << 7); //bit set 7
+			writeReg(RA8875_TPCR0, _TPCR0Reg);
+			_touchEnabled = true;
+		} else if (_touchEnabled && !enabled) {
+			_INTC1Reg &= ~(1 << 2); //clear bit 2
+			writeReg(RA8875_INTC1, _INTC1Reg);
+			_TPCR0Reg &= ~(1 << 7); //clear bit 7
+			writeReg(RA8875_TPCR0, _TPCR0Reg);
+			_touchEnabled = false;
+		}
+	} 
+}
+
+/**************************************************************************/
+/*!   
+	  Detect a touch and return true, otherwise false.
+	  It also correctly resets INT register to avoid false detections.
+	  Will not work at all (return false) if touchBegin/touchEnable not set.
+	  Using autoclear=true: 
+	  This is useful to detect any press without get coordinates!
+	  Note that if you are not using autoclear you will need a readTouchADC or readTouchPixel
+	  just after touchDetect or the INT register will not clear and you will get a loopback!
+	  In contrast, using autoclear and readTouchADC/readTouchPixel will result in wrong readings.
+	  Parameters:
+	  Autoclear:(true/false) set true when you want to use this function standalone and
+	  not followed by a coordinate reading with readTouchADC/readTouchPixel
+*/
+/**************************************************************************/
+boolean RA8875::touchDetect(boolean autoclear) 
+{
+	if (_touchEnabled){
+		if (!digitalRead(_touchPin)) {
+			_clearTInt = true;
+			if (touched()){
+				if (autoclear) clearTouchInt();
+				return true;
+			} else {
+				return false;
+			}
+		}
+		if (_clearTInt){
+			_clearTInt = false;
+			clearTouchInt();
+			delay(1);
+		}
+		return false;
+	} else {
+		return false;
+	}
+}
+
+
+/**************************************************************************/
+/*! 
+	(oiriginally from adafruit)
+      Checks if a touch event has occured
+      
+      @returns  True is a touch event has occured (reading it via
+                touchRead() will clear the interrupt in memory)
+*/
+/**************************************************************************/
+boolean RA8875::touched(void) 
+{
+	if (readReg(RA8875_INTC2) & RA8875_INTCx_TP) return true;
+	return false;
+}
+
+/**************************************************************************/
+/*!   
+	  Read 10bit internal ADC of RA8875 registers and perform corrections
+	  It will return always RAW data
+	  Parameters:
+	  x:out 0...1024
+	  Y:out 0...1024
+	  Modified 14/4/15 M Sandercock: remove range checking and inversions
+<<<<<<< HEAD
+	  
+	  [private]
+=======
+
+>>>>>>> upstream/master
+*/
+/**************************************************************************/
+void RA8875::readTouchADC(uint16_t *x, uint16_t *y) 
+{
+	uint16_t tx =  readReg(RA8875_TPXH);
+	uint16_t ty =  readReg(RA8875_TPYH);
+	uint8_t temp = readReg(RA8875_TPXYL);
+	tx <<= 2;
+	ty <<= 2;
+<<<<<<< HEAD
+	tx |= temp & 0x03;        // get the bottom x bits from temp
+	ty |= (temp >> 2) & 0x03; // get the bottom y bits from temp
+	//Note: removed inversion and range checking here - do it inside readTouchPixel()
+    *x = tx;
+	*y = ty;
+	Serial.print('R');
+	Serial.print(tx);
+	Serial.print(',');
+	Serial.println(ty);
+=======
+	tx |= temp & 0x03;        // get the bottom x bits
+	ty |= (temp >> 2) & 0x03; // get the bottom y bits
+	/*
+	#if defined (INVERTETOUCH_X)
+		tx = 1024 - tx;
+	#endif
+	
+	#if defined (INVERTETOUCH_Y)
+		ty = 1024 - ty;
+	#endif
+	//calibrate???
+	  #if defined(TOUCSRCAL_XLOW) && (TOUCSRCAL_XLOW != 0)
+		_tsAdcMinX = TOUCSRCAL_XLOW;
+		if (tx < TOUCSRCAL_XLOW) tx = TOUCSRCAL_XLOW;
+	  #endif
+	  
+	  #if defined(TOUCSRCAL_YLOW) && (TOUCSRCAL_YLOW != 0)
+		_tsAdcMinY = TOUCSRCAL_YLOW;
+		if (ty < TOUCSRCAL_YLOW) ty = TOUCSRCAL_YLOW;
+	  #endif
+	  
+	  #if defined(TOUCSRCAL_XHIGH) && (TOUCSRCAL_XHIGH != 0)
+		_tsAdcMaxX = TOUCSRCAL_XHIGH;
+		if (tx > TOUCSRCAL_XHIGH) tx = TOUCSRCAL_XHIGH;
+	  #endif
+	  
+	  #if defined(TOUCSRCAL_YHIGH) && (TOUCSRCAL_YHIGH != 0)
+		_tsAdcMaxY = TOUCSRCAL_YHIGH;
+		if (ty > TOUCSRCAL_YHIGH) ty = TOUCSRCAL_YHIGH;
+	  #endif
+	  */
+	 *x = tx;
+	 *y = ty;
+>>>>>>> upstream/master
+}
+
+/**************************************************************************/
+/*!   
+	  Returns 10bit x,y data with TRUE scale (0...1024)
+	  Parameters:
+	  x:out 0...1024
+	  Y:out 0...1024
+<<<<<<< HEAD
+	  Odd that this is called 'Raw' when it applies the calibrations.
+=======
+	  
+	Odd that this is called 'Raw' when it applies the calibrations.
+>>>>>>> upstream/master
+*/
+/**************************************************************************/
+void RA8875::touchReadRaw(uint16_t *x, uint16_t *y) 
+{
+	uint16_t tx,ty;
+	readTouchADC(&tx,&ty);
+	#if (defined(TOUCSRCAL_XLOW) && (TOUCSRCAL_XLOW != 0)) || (defined(TOUCSRCAL_XHIGH) && (TOUCSRCAL_XHIGH != 0))
+		*x = map(tx,_tsAdcMinX,_tsAdcMaxX,0,1024);
+	#else
+		*x = tx;
+	#endif
+	#if (defined(TOUCSRCAL_YLOW) && (TOUCSRCAL_YLOW != 0)) || (defined(TOUCSRCAL_YHIGH) && (TOUCSRCAL_YHIGH != 0))
+		*y = map(ty,_tsAdcMinY,_tsAdcMaxY,0,1024);
+	#else
+		*y = ty;
+	#endif
+	clearTouchInt();
+}
+
+/**************************************************************************/
+/*!   
+	  Returns pixel x,y data with SCREEN scale (screen width, screen Height)
+	  Parameters:
+	  x:out 0...screen width  (pixels)
+	  Y:out 0...screen Height (pixels)
+	  Check for out-of-bounds here as touches near the edge of the screen
+	  can be safely mapped to the nearest point of the screen.
+	  If the screen is rotated, then the min and max will be modified elsewhere
+	  so that this always corresponds to screen pixel coordinates.
+*/
+/**************************************************************************/
+void RA8875::touchReadPixel(uint16_t *x, uint16_t *y) 
+{
+	uint16_t tx,ty;
+	Serial.print("Y cal=");Serial.print(_tsAdcMinY);Serial.print("-");Serial.print(_tsAdcMaxY); Serial.print("  ");
+	readTouchADC(&tx,&ty);
+<<<<<<< HEAD
+	*x = constrain(map(tx,_tsAdcMinX,_tsAdcMaxX,0,_width-1),0,_width-1);
+=======
+	//*x = map(tx,_tsAdcMinX,_tsAdcMaxX,0,_width-1);
+	*x = constrain(map(tx,_tsAdcMinX,_tsAdcMaxX,0,_width-1),0,_width-1);
+	//*y = map(ty,_tsAdcMinY,_tsAdcMaxY,0,_height-1);
+>>>>>>> upstream/master
+	*y = constrain(map(ty,_tsAdcMinY,_tsAdcMaxY,0,_height-1),0,_height-1);
+	clearTouchInt();
+}
+
+/**************************************************************************/
+/*!   A service utility that detects if system has been calibrated in the past
+	  Return true if an old calibration exists
+*/
+/**************************************************************************/
+boolean RA8875::touchCalibrated(void) 
+{
+	uint8_t uncaltetection = 4;
+	#if defined(TOUCSRCAL_XLOW) && (TOUCSRCAL_XLOW != 0)
+		uncaltetection--;
+	#endif
+	#if defined(TOUCSRCAL_YLOW) && (TOUCSRCAL_YLOW != 0)
+		uncaltetection--;
+	#endif
+	#if defined(TOUCSRCAL_XHIGH) && (TOUCSRCAL_XHIGH != 0)
+		uncaltetection--;
+	#endif
+	#if defined(TOUCSRCAL_YHIGH) && (TOUCSRCAL_YHIGH != 0)
+		uncaltetection--;
+	#endif
+	if (uncaltetection < 1) return true;
+	return false;
+}
+
+/**************************************************************************/
+/*!   PRIVATE
+		helper
+*/
+/**************************************************************************/
+void RA8875::clearTouchInt(void) 
+{
+	writeReg(RA8875_INTC2, RA8875_INTCx_TP);
+}
+#endif
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++								  SLEEP STUFF										 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+
+/**************************************************************************/
+/*!
+    Sleep mode on/off (complete sequence)
+	The sleep on/off sequence it's quite tricky on RA8875 when in SPI mode!
+*/
+/**************************************************************************/
+void RA8875::sleep(boolean sleep) 
+{
+	if (_sleep != sleep){//only if it's needed
+		_sleep = sleep;
+		if (_sleep == true){
+			//1)turn off backlight
+			if (_size == Adafruit_480x272 || _size == Adafruit_800x480 || _size == Adafruit_640x480) GPIOX(false);
+			//2)decelerate SPI clock
+			#if defined(SPI_HAS_TRANSACTION)
+				settings = SPISettings(1000000, MSBFIRST, SPI_MODE3);
+			#else
+				SPI.setClockDivider(SPI_CLOCK_DIV16);
+			#endif
+			//3)set PLL to default
+			setSysClock(0x07,0x03,0x02);
+			//4)display off & sleep
+			writeReg(RA8875_PWRR, RA8875_PWRR_DISPOFF | RA8875_PWRR_SLEEP);
+			delay(100);
+		} else {
+			//1)wake up with display off(100ms)
+			writeReg(RA8875_PWRR, RA8875_PWRR_DISPOFF);
+			delay(100);
+			//2)bring back the pll
+			setSysClock(initStrings[_initIndex][0],initStrings[_initIndex][1],initStrings[_initIndex][2]);
+			//writeReg(RA8875_PCSR,initStrings[_initIndex][2]);//Pixel Clock Setting Register
+			delay(20);
+			writeReg(RA8875_PWRR, RA8875_PWRR_NORMAL | RA8875_PWRR_DISPON);//disp on
+			delay(20);
+			//4)resume SPI speed
+			#if defined(SPI_HAS_TRANSACTION)
+				settings = SPISettings(MAXSPISPEED, MSBFIRST, SPI_MODE3);
+			#else
+				SPI.setClockDivider(SPI_CLOCK_DIV4);
+			#endif
+			//5)PLL afterburn!
+			setSysClock(sysClockPar[_initIndex][0],sysClockPar[_initIndex][1],initStrings[_initIndex][2]);
+			//5)turn on backlight
+			if (_size == Adafruit_480x272 || _size == Adafruit_800x480 || _size == Adafruit_640x480) GPIOX(true);
+			//writeReg(RA8875_PWRR, RA8875_PWRR_NORMAL);
+		}
+	}
+}
+
+<<<<<<< HEAD
 /**************************************************************************/
 /*!
       Change the rotation of the screen
@@ -2647,18 +3329,15 @@ uint8_t RA8875::getRotation(){
 void RA8875::displayOn(boolean on) {
 	on == true ? writeReg(RA8875_PWRR, RA8875_PWRR_NORMAL | RA8875_PWRR_DISPON) : writeReg(RA8875_PWRR, RA8875_PWRR_NORMAL | RA8875_PWRR_DISPOFF);
 }
+=======
+>>>>>>> upstream/master
 
 
-/**************************************************************************/
-/*!
-    Sleep mode on/off (caution! in SPI this need some more code!)
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++							SPI & LOW LEVEL STUFF									 +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
-/**************************************************************************/
-void RA8875::sleep(boolean sleep) {
-	sleep == true ? writeReg(RA8875_PWRR, RA8875_PWRR_DISPOFF | RA8875_PWRR_SLEEP) : writeReg(RA8875_PWRR, RA8875_PWRR_DISPOFF);
-}
-
-/************************* Low Level ***********************************/
 
 /**************************************************************************/
 /*! PRIVATE
@@ -2668,7 +3347,8 @@ void RA8875::sleep(boolean sleep) {
 		val: the data
 */
 /**************************************************************************/
-void  RA8875::writeReg(uint8_t reg, uint8_t val) {
+void RA8875::writeReg(uint8_t reg, uint8_t val) 
+{
 	writeCommand(reg);
 	writeData(val);
 }
@@ -2680,7 +3360,8 @@ void  RA8875::writeReg(uint8_t reg, uint8_t val) {
 		reg: the register
 */
 /**************************************************************************/
-uint8_t  RA8875::readReg(uint8_t reg) {
+uint8_t RA8875::readReg(uint8_t reg) 
+{
 	writeCommand(reg);
 	return readData(false);
 }
@@ -2692,7 +3373,8 @@ uint8_t  RA8875::readReg(uint8_t reg) {
 		d: the data
 */
 /**************************************************************************/
-void  RA8875::writeData(uint8_t data) {
+void RA8875::writeData(uint8_t data) 
+{
 	startSend();
 	SPI.transfer(RA8875_DATAWRITE);
 	SPI.transfer(data);
@@ -2706,13 +3388,12 @@ void  RA8875::writeData(uint8_t data) {
 		d: the data (16 bit)
 */
 /**************************************************************************/
-void  RA8875::writeData16(uint16_t data) {
+void  RA8875::writeData16(uint16_t data) 
+{
 	startSend();
 	SPI.transfer(RA8875_DATAWRITE);
-	#if (ARDUINO >= 160) || TEENSYDUINO > 120
-		//SPI.transfer16(data);//until this has been fixed!
-		SPI.transfer(data >> 8);
-		SPI.transfer(data);
+	#if (ARDUINO >= 160) || TEENSYDUINO > 121
+		SPI.transfer16(data);//should be fixed already
 	#else
 		SPI.transfer(data >> 8);
 		SPI.transfer(data);
@@ -2725,7 +3406,8 @@ void  RA8875::writeData16(uint16_t data) {
 
 */
 /**************************************************************************/
-uint8_t  RA8875::readData(bool stat) {
+uint8_t RA8875::readData(bool stat) 
+{
 	#if defined(SPI_HAS_TRANSACTION)
 		if (_inited) settings = SPISettings(MAXSPISPEED/2, MSBFIRST, SPI_MODE3);
 	#else
@@ -2763,7 +3445,8 @@ uint8_t  RA8875::readData(bool stat) {
 
 */
 /**************************************************************************/
-uint8_t  RA8875::readStatus(void) {
+uint8_t	RA8875::readStatus(void) 
+{
 	return readData(true);
 }
 
@@ -2774,7 +3457,8 @@ uint8_t  RA8875::readStatus(void) {
 		d: the command
 */
 /**************************************************************************/
-void RA8875::writeCommand(uint8_t d) {
+void RA8875::writeCommand(uint8_t d) 
+{
 	startSend();
 	SPI.transfer(RA8875_CMDWRITE);
 	SPI.transfer(d);
@@ -2787,7 +3471,8 @@ void RA8875::writeCommand(uint8_t d) {
 		starts SPI communication
 */
 /**************************************************************************/
-void RA8875::startSend(){
+void RA8875::startSend()
+{
 #if defined(SPI_HAS_TRANSACTION)
 	SPI.beginTransaction(settings);
 #elif !defined(ENERGIA)
@@ -2805,7 +3490,8 @@ void RA8875::startSend(){
 		ends SPI communication
 */
 /**************************************************************************/
-void RA8875::endSend(){
+void RA8875::endSend()
+{
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
 	digitalWriteFast(_cs, HIGH);
 #else
@@ -2816,6 +3502,6 @@ void RA8875::endSend(){
 #elif !defined(ENERGIA)
 	sei();//enable interrupts
 #endif
-}
+} 
 
 
