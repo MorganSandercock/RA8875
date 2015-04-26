@@ -15,14 +15,9 @@ const uint16_t 	RA8875_YELLOW           = RA8875_RED | RA8875_GREEN;//0xFFE0;
 const uint16_t 	RA8875_LIGHT_GREY 		= 0xB5B2; // the experimentalist
 const uint16_t 	RA8875_LIGHT_ORANGE 	= 0xFC80; // the experimentalist
 const uint16_t 	RA8875_DARK_ORANGE 		= 0xFB60; // the experimentalist
-<<<<<<< HEAD
-const uint16_t 	RA8875_PINK 			= 0xFCFF; // Consistent in both 8 and 16 bit mode
-const uint16_t 	RA8875_PURPLE 			= 0x8017; // Make this more distinct from blue
-=======
 const uint16_t 	RA8875_PINK 			= 0xFCFF; // M.Sandercock
 const uint16_t 	RA8875_PURPLE 			= 0x8017; // M.Sandercock
 const uint16_t 	RA8875_GRAYSCALE 		= 2113;//grayscale30 = RA8875_GRAYSCALE*30
->>>>>>> upstream/master
 
 
 #endif
