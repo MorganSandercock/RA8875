@@ -1856,10 +1856,9 @@ void RA8875::drawFlashImage(int16_t x,int16_t y,int16_t w,int16_t h,uint8_t picn
 +								BTE STUFF											 +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
+
 /**************************************************************************/
-/*!
-/**************************************************************************/
-/*! 
+/* 
 		Block Transfer Move
 		Can move a rectangular block from any area of memory (eg. layer 1) to any other (eg layer 2)
 		Can move with transparency - note THE TRANSPARENT COLOUR IS THE TEXT FOREGROUND COLOUR
@@ -1875,36 +1874,37 @@ void RA8875::drawFlashImage(int16_t x,int16_t y,int16_t w,int16_t h,uint8_t picn
 		Caller should check the busy status before issuing any more RS8875 commands.
 
 		Basic usage:
-		BTEMove(SourceX, SourceY, Width, Height, DestX, DestY) = copy something visible on the current layer
-		BTEMove(SourceX, SourceY, Width, Height, DestX, DestY, 2) = copy something from layer 2 to the current layer
-		BTEMove(SourceX, SourceY, Width, Height, DestX, DestY, 2, 1, true) = copy from layer 2 to layer 1, with the transparency option
-		BTEMove(SourceX, SourceY, Width, Height, DestX, DestY, 0, 0, true, RA8875_BTEROP_ADD) = copy on the current layer, using transparency and the ADD/brighter operation 
-		BTEMove(SourceX, SourceY, Width, Height, DestX, DestY, 0, 0, false, RA8875_BTEROP_SOURCE, false, true) = copy on the current layer using the reverse direction option for overlapping areas
+		BTE_Move(SourceX, SourceY, Width, Height, DestX, DestY) = copy something visible on the current layer
+		BTE_Move(SourceX, SourceY, Width, Height, DestX, DestY, 2) = copy something from layer 2 to the current layer
+		BTE_Move(SourceX, SourceY, Width, Height, DestX, DestY, 2, 1, true) = copy from layer 2 to layer 1, with the transparency option
+		BTE_Move(SourceX, SourceY, Width, Height, DestX, DestY, 0, 0, true, RA8875_BTEROP_ADD) = copy on the current layer, using transparency and the ADD/brighter operation 
+		BTE_Move(SourceX, SourceY, Width, Height, DestX, DestY, 0, 0, false, RA8875_BTEROP_SOURCE, false, true) = copy on the current layer using the reverse direction option for overlapping areas
 */
-/**************************************************************************/
-void  RA8875::BTEMove(uint16_t SourceX, uint16_t SourceY, uint16_t Width, uint16_t Height, uint16_t DestX, uint16_t DestY, uint8_t SourceLayer, uint8_t DestLayer,bool Transparent, uint8_t ROP, bool Monochrome, bool ReverseDir){
-	changeMode(0);//BTE requires graphics mode
-	if(_portrait) {
+
+void  RA8875::BTE_Move(uint16_t SourceX, uint16_t SourceY, uint16_t Width, uint16_t Height, uint16_t DestX, uint16_t DestY, uint8_t SourceLayer, uint8_t DestLayer,bool Transparent, uint8_t ROP, bool Monochrome, bool ReverseDir){
+	//changeMode(0);//BTE requires graphics mode
+	if (_currentMode != 0) changeMode(0);//avoid useless calls
+	if (_portrait) {
 		swapvals(SourceX,SourceY);
 		swapvals(Width,Height);
 		swapvals(DestX,DestY);
 	}	//Check for out-of-bounds X/Y/Width here?
-	if(SourceLayer==0) SourceLayer = _currentLayer;	
-	if(DestLayer==0) DestLayer = _currentLayer;
-	if(SourceLayer==2) SourceY |= 0x8000; //set the high bit of the vertical coordinate to indicate layer 2
-	if(DestLayer==2) DestY |= 0x8000; //set the high bit of the vertical coordinate to indicate layer 2
+	if (SourceLayer == 0) SourceLayer = _currentLayer;	
+	if (DestLayer == 0) DestLayer = _currentLayer;
+	if (SourceLayer == 2) SourceY |= 0x8000; //set the high bit of the vertical coordinate to indicate layer 2
+	if (DestLayer == 2) DestY |= 0x8000; //set the high bit of the vertical coordinate to indicate layer 2
 	ROP &= 0xF0; //Ensure the lower bits of ROP are zero
-	if(Transparent) {
-		if(Monochrome) {
+	if (Transparent) {
+		if (Monochrome) {
 			ROP |= 0x0A; //colour-expand transparent
 		} else {
 			ROP |= 0x05; //set the transparency option 
 		}
 	} else {
-		if(Monochrome) {
+		if (Monochrome) {
 			ROP |= 0x0B; //colour-expand normal
 		} else {
-			if(ReverseDir) {
+			if (ReverseDir) {
 				ROP |= 0x03; //set the reverse option
 			} else {
 				ROP |= 0x02; //standard block-move operation
@@ -1933,13 +1933,13 @@ void  RA8875::BTEMove(uint16_t SourceX, uint16_t SourceY, uint16_t Width, uint16
 	writeReg(RA8875_BECR1, ROP); 
 
 	//Execute BTE! (This selects linear addressing mode for the monochrome source data)
-	if(Monochrome) writeReg(RA8875_BECR0, 0xC0); else writeReg(RA8875_BECR0, 0x80);
+	if (Monochrome) writeReg(RA8875_BECR0, 0xC0); else writeReg(RA8875_BECR0, 0x80);
 
 	//we are supposed to wait for the thing to become unbusy
 	//caller can call waitBusy(0x40) to check the BTE busy status (except it's private)
 }
-*/
-/**************************************************************************/
+
+
 void RA8875::BTE_size(uint16_t w, uint16_t h)
 {
 	//0.69b21 -have to check this, not verified
@@ -2255,7 +2255,7 @@ void RA8875::drawPixels(uint16_t * p, uint32_t count, int16_t x, int16_t y)
     startSend();
 	SPI.transfer(RA8875_DATAWRITE);
 	while (count--) {
-	#if (ARDUINO >= 160) || TEENSYDUINO > 121
+	#if !defined(__SAM3X8E__) && ((ARDUINO >= 160) || (TEENSYDUINO > 121))
 		SPI.transfer16(*p);//should be fixed already
 	#else
 		SPI.transfer(*p >> 8);
@@ -2287,7 +2287,7 @@ uint16_t RA8875::getPixel(int16_t x, int16_t y)
     startSend();
     SPI.transfer(RA8875_DATAREAD);
     SPI.transfer(0x00);//first byte it's dummy
-	#if (ARDUINO >= 160) || TEENSYDUINO > 121
+	#if !defined(__SAM3X8E__) && ((ARDUINO >= 160) || (TEENSYDUINO > 121))
 		color  = SPI.transfer16(0x0);
 	#else
 		color  = SPI.transfer(0x0);
@@ -2327,14 +2327,14 @@ void RA8875::getPixels(uint16_t * p, uint32_t count, int16_t x, int16_t y)
 	#endif
     startSend();
 	SPI.transfer(RA8875_DATAREAD);
-	#if (ARDUINO >= 160) || TEENSYDUINO > 121
+	#if !defined(__SAM3X8E__) && ((ARDUINO >= 160) || (TEENSYDUINO > 121))
 		SPI.transfer16(0x0);//dummy
 	#else
 		SPI.transfer(0x0);//dummy
 		SPI.transfer(0x0);//dummy
 	#endif
     while (count--) {
-		#if (ARDUINO >= 160) || TEENSYDUINO > 121
+		#if !defined(__SAM3X8E__) && ((ARDUINO >= 160) || (TEENSYDUINO > 121))
 			color  = SPI.transfer16(0x0);
 		#else
 			color  = SPI.transfer(0x0);
@@ -3442,7 +3442,7 @@ void  RA8875::writeData16(uint16_t data)
 {
 	startSend();
 	SPI.transfer(RA8875_DATAWRITE);
-	#if (ARDUINO >= 160) || TEENSYDUINO > 121
+	#if !defined(__SAM3X8E__) && ((ARDUINO >= 160) || (TEENSYDUINO > 121))
 		SPI.transfer16(data);//should be fixed already
 	#else
 		SPI.transfer(data >> 8);
@@ -3803,7 +3803,7 @@ void RA8875::gPrint(uint16_t x,uint16_t y,const char *in,uint16_t color,uint8_t 
 				startSend();
 				SPI.transfer(RA8875_DATAWRITE);
 				for (i=0;i<w*scale;i++){
-					#if (ARDUINO >= 160) || TEENSYDUINO > 121
+					#if !defined(__SAM3X8E__) && ((ARDUINO >= 160) || (TEENSYDUINO > 121))
 						SPI.transfer16(buffer[i]);//should be fixed already
 					#else
 						SPI.transfer(buffer[i] >> 8);
